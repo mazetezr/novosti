@@ -78,7 +78,7 @@ async def summarize(news: list[NewsItem]) -> str:
                     OPENROUTER_URL,
                     json=payload,
                     headers=headers,
-                    timeout=aiohttp.ClientTimeout(total=60),
+                    timeout=aiohttp.ClientTimeout(total=120),
                 ) as resp:
                     if resp.status != 200:
                         body = await resp.text()
