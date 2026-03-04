@@ -13,10 +13,13 @@ API_URL = "https://api.thenewsapi.com/v1/news/all"
 
 async def fetch_thenewsapi(cursor_dt: datetime) -> list[NewsItem]:
     keywords = await get_topics()
-    search_query = " ".join(keywords) if keywords else "war conflict Iran Israel Ukraine"
+    # TheNewsAPI: use | for OR logic, limit to top keywords to avoid too-long query
+    top_keywords = keywords[:30] if len(keywords) > 30 else keywords
+    search_query = " | ".join(top_keywords) if top_keywords else "war | conflict | Iran | Israel | Ukraine"
     params = {
         "api_token": THENEWSAPI_KEY,
         "search": search_query,
+        "search_fields": "title",
         "language": "en",
         "published_after": cursor_dt.strftime("%Y-%m-%dT%H:%M:%S"),
         "limit": "50",
