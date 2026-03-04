@@ -73,8 +73,16 @@ async def run_cycle():
             logger.info("No new articles, skipping cycle")
             return
 
+        # Cap articles sent to LLM — sort by published desc, take top 60
+        MAX_ARTICLES = 60
+        if len(new_news) > MAX_ARTICLES:
+            new_news_sorted = sorted(new_news, key=lambda x: x.published, reverse=True)[:MAX_ARTICLES]
+            logger.info("Capped articles from %d to %d for LLM", len(new_news), MAX_ARTICLES)
+        else:
+            new_news_sorted = new_news
+
         # Summarize with LLM
-        summary = await summarize(new_news)
+        summary = await summarize(new_news_sorted)
         if not summary:
             logger.error("LLM returned empty summary, skipping post")
             return
