@@ -475,6 +475,32 @@ async def cb_del_stopword(callback: CallbackQuery):
 
 # --- Text-based topic management (handles 100+ keywords) ---
 
+@router.message(Command("addtopic"))
+async def cmd_addtopic(message: Message):
+    if not _is_admin(message.from_user.id):
+        return
+    args = message.text.partition(" ")[2].strip()
+    if not args:
+        await message.answer(
+            "Использование: <code>/addtopic слово1, слово2, слово3</code>",
+            parse_mode="HTML",
+        )
+        return
+    keywords = [kw.strip() for kw in args.split(",") if kw.strip()]
+    added, skipped = [], []
+    for kw in keywords:
+        if await add_topic(kw):
+            added.append(kw)
+        else:
+            skipped.append(kw)
+    parts = []
+    if added:
+        parts.append(f"✅ Добавлено ({len(added)}): " + ", ".join(f"<code>{k}</code>" for k in added))
+    if skipped:
+        parts.append(f"⚠️ Уже есть ({len(skipped)}): " + ", ".join(f"<code>{k}</code>" for k in skipped))
+    await message.answer("\n".join(parts), parse_mode="HTML")
+
+
 @router.message(Command("topics"))
 async def cmd_topics(message: Message):
     if not _is_admin(message.from_user.id):
