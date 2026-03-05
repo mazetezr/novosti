@@ -11,6 +11,7 @@ from bot.cursor.manager import (
     get_topics, add_topic, remove_topic,
     get_stopwords, add_stopword, remove_stopword,
     get_setting, set_setting, reset_cursor,
+    DEFAULT_TOPICS,
 )
 
 logger = logging.getLogger(__name__)
@@ -469,6 +470,70 @@ async def cb_del_stopword(callback: CallbackQuery):
     await callback.message.edit_text(
         "🗑 Нажмите на стоп-слово для удаления:",
         reply_markup=await _stop_del_kb(),
+    )
+
+
+# --- Text-based topic management (handles 100+ keywords) ---
+
+@router.message(Command("topics"))
+async def cmd_topics(message: Message):
+    if not _is_admin(message.from_user.id):
+        return
+    topics = await get_topics()
+    if not topics:
+        await message.answer("Список тем пуст.")
+        return
+    # Split into chunks of 50 to avoid message length limit
+    chunk_size = 50
+    for start in range(0, len(topics), chunk_size):
+        chunk = topics[start:start + chunk_size]
+        lines = [f"📋 <b>Темы [{start + 1}–{start + len(chunk)}] из {len(topics)}:</b>\n"]
+        for i, t in enumerate(chunk, start + 1):
+            lines.append(f"{i}. <code>{t}</code>")
+        await message.answer("\n".join(lines), parse_mode="HTML")
+
+
+@router.message(Command("deltopic"))
+async def cmd_deltopic(message: Message):
+    if not _is_admin(message.from_user.id):
+        return
+    args = message.text.partition(" ")[2].strip()
+    if not args:
+        await message.answer(
+            "Использование: <code>/deltopic слово1, слово2, слово3</code>",
+            parse_mode="HTML",
+        )
+        return
+    words = [w.strip() for w in args.split(",") if w.strip()]
+    removed, not_found = [], []
+    for w in words:
+        if await remove_topic(w):
+            removed.append(w)
+        else:
+            not_found.append(w)
+    parts = []
+    if removed:
+        parts.append("✅ Удалено: " + ", ".join(f"<code>{w}</code>" for w in removed))
+    if not_found:
+        parts.append("⚠️ Не найдено: " + ", ".join(f"<code>{w}</code>" for w in not_found))
+    await message.answer("\n".join(parts), parse_mode="HTML")
+
+
+@router.message(Command("resettopics"))
+async def cmd_resettopics(message: Message):
+    if not _is_admin(message.from_user.id):
+        return
+    import aiosqlite
+    from bot.config import DB_PATH
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute("DELETE FROM topics")
+        for kw in DEFAULT_TOPICS:
+            await db.execute("INSERT OR IGNORE INTO topics (keyword) VALUES (?)", (kw,))
+        await db.commit()
+    await message.answer(
+        f"♻️ Темы сброшены к дефолтным — <b>{len(DEFAULT_TOPICS)} штук</b>.\n"
+        f"Используй /topics чтобы проверить.",
+        parse_mode="HTML",
     )
 
 
