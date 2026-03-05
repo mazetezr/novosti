@@ -63,9 +63,9 @@ SYSTEM_PROMPT = """Ты — редактор геополитического н
 Новость 2</blockquote>"""
 
 
-async def summarize(news: list[NewsItem]) -> str:
+async def summarize(news: list[NewsItem]) -> tuple[str, set[int]]:
     if not news:
-        return ""
+        return "", set()
 
     lines = []
     source_map = {}
@@ -104,16 +104,29 @@ async def summarize(news: list[NewsItem]) -> str:
                     data = await resp.json()
                     choice = data["choices"][0]
                     finish = choice.get("finish_reason", "unknown")
-                    text = choice["message"]["content"]
-                    logger.info("LLM finish_reason=%s, output_len=%d chars", finish, len(text))
+                    raw_text = choice["message"]["content"]
+                    logger.info("LLM finish_reason=%s, output_len=%d chars", finish, len(raw_text))
                     if finish == "length":
                         logger.warning("LLM output was TRUNCATED (hit max_tokens)")
-                    return _inject_links(text, source_map)
+                    cited = _extract_cited_indices(raw_text)
+                    logger.info("LLM cited %d out of %d articles", len(cited), len(news))
+                    return _inject_links(raw_text, source_map), cited
         except Exception as e:
             logger.warning("LLM attempt %d failed: %s", attempt + 1, e)
 
     logger.error("LLM summarization failed after 3 attempts")
-    return ""
+    return "", set()
+
+
+def _extract_cited_indices(text: str) -> set[int]:
+    """Extract all article numbers cited as [N] or [N, M] in the LLM response."""
+    indices: set[int] = set()
+    for match in re.finditer(r'\[([\d,\s]+)\]', text):
+        for n in match.group(1).split(","):
+            n = n.strip()
+            if n.isdigit():
+                indices.add(int(n))
+    return indices
 
 
 def _inject_links(text: str, source_map: dict[int, tuple[str, str]]) -> str:
