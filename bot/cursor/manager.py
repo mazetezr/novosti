@@ -119,6 +119,22 @@ DEFAULT_TOPICS = [
     "metals", "France", "Germany", "USA", "Europe", "EU", "NATO",
 ]
 
+# Extra topics added to existing DBs on every startup (INSERT OR IGNORE is safe)
+EXTRA_TOPICS = [
+    # Asia
+    "China", "India", "Pakistan", "Taiwan", "North Korea", "South Korea",
+    "Xi Jinping", "Modi", "Tibet", "Xinjiang", "South China Sea",
+    # Africa
+    "Sudan", "Mali", "Libya", "Sahel", "Niger", "coup", "Somalia",
+    "Ethiopia", "Burkina Faso", "mercenary", "Wagner",
+    # Latin America
+    "Venezuela", "Cuba", "Maduro", "Nicaragua", "Haiti", "cartel",
+    "Colombia", "Bolivia",
+    # Crypto geopolitical
+    "Bitcoin", "crypto", "cryptocurrency", "blockchain", "CBDC",
+    "stablecoin", "Tether", "crypto sanctions",
+]
+
 DEFAULT_STOPWORDS = [
     "football", "soccer", "basketball", "tennis", "cricket", "baseball",
     "celebrity", "entertainment", "movie", "film", "music", "album",
@@ -139,6 +155,16 @@ async def seed_default_topics():
                 )
             await db.commit()
             logger.info("Seeded %d default topics", len(DEFAULT_TOPICS))
+        # Always add extra topics (INSERT OR IGNORE is safe for existing DBs)
+        added = 0
+        for kw in EXTRA_TOPICS:
+            cur = await db.execute(
+                "INSERT OR IGNORE INTO topics (keyword) VALUES (?)", (kw,)
+            )
+            added += cur.rowcount
+        if added:
+            await db.commit()
+            logger.info("Added %d new region/crypto topics to DB", added)
         # Seed default stopwords
         rows = await db.execute_fetchall("SELECT COUNT(*) FROM stopwords")
         if rows[0][0] == 0:

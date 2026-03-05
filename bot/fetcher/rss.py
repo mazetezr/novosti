@@ -9,17 +9,37 @@ from bot.cursor.manager import get_topics, get_stopwords
 logger = logging.getLogger(__name__)
 
 RSS_FEEDS = [
+    # Global / wire
     ("Reuters World", "https://feeds.reuters.com/reuters/worldNews"),
     ("Reuters Business", "https://feeds.reuters.com/reuters/businessNews"),
     ("Al Jazeera", "https://www.aljazeera.com/xml/rss/all.xml"),
     ("BBC World", "http://feeds.bbci.co.uk/news/world/rss.xml"),
-    ("Middle East Eye", "https://www.middleeasteye.net/rss"),
-    ("Defense News", "https://www.defensenews.com/rss/"),
-    ("Axios World", "https://api.axios.com/feed/"),
     ("Associated Press", "https://apnews.com/rss"),
+    ("Axios World", "https://api.axios.com/feed/"),
+    # Middle East / Iran
+    ("Middle East Eye", "https://www.middleeasteye.net/rss"),
     ("Times of Israel", "https://www.timesofisrael.com/feed/"),
     ("Iran International", "https://www.iranintl.com/en/rss"),
+    # Ukraine / Russia
     ("ISW", "https://www.understandingwar.org/rss.xml"),
+    ("Kyiv Independent", "https://kyivindependent.com/feed/"),
+    ("Kyiv Post", "https://www.kyivpost.com/rss"),
+    ("UNIAN", "https://www.unian.info/rss/news.rss"),
+    # Defense
+    ("Defense News", "https://www.defensenews.com/rss/"),
+    # Asia
+    ("The Diplomat", "https://thediplomat.com/feed/"),
+    ("Dawn Pakistan", "https://www.dawn.com/feeds/home"),
+    ("NDTV World", "https://feeds.feedburner.com/ndtvnews-world-news"),
+    # Africa
+    ("AllAfrica", "https://allafrica.com/tools/headlines/rdf/latest/headlines.rdf"),
+    ("The Africa Report", "https://www.theafricareport.com/feed/"),
+    # Latin America
+    ("MercoPress", "https://en.mercopress.com/rss.xml"),
+    # Crypto (geopolitical)
+    ("CoinDesk", "https://www.coindesk.com/arc/outboundfeeds/rss/"),
+    ("Cointelegraph", "https://cointelegraph.com/rss"),
+    # Markets / Energy
     ("CNBC World", "https://search.cnbc.com/rs/search/combinedcms/view.xml?partnerId=wrss01&id=100727362"),
     ("MarketWatch", "https://feeds.marketwatch.com/marketwatch/topstories/"),
     ("OilPrice", "https://oilprice.com/rss/main"),
