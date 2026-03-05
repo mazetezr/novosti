@@ -109,9 +109,6 @@ async def main():
     await init_db()
     await seed_default_topics()
 
-    logger.info("Running initial cycle...")
-    await run_cycle()
-
     saved = await get_setting("interval_hours", "3")
     interval = int(saved)
     logger.info("Starting scheduler (every %d hours)...", interval)

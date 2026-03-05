@@ -27,15 +27,6 @@ RSS_FEEDS = [
     ("UNIAN", "https://www.unian.info/rss/news.rss"),
     # Defense
     ("Defense News", "https://www.defensenews.com/rss/"),
-    # Asia
-    ("The Diplomat", "https://thediplomat.com/feed/"),
-    ("Dawn Pakistan", "https://www.dawn.com/feeds/home"),
-    ("NDTV World", "https://feeds.feedburner.com/ndtvnews-world-news"),
-    # Africa
-    ("AllAfrica", "https://allafrica.com/tools/headlines/rdf/latest/headlines.rdf"),
-    ("The Africa Report", "https://www.theafricareport.com/feed/"),
-    # Latin America
-    ("MercoPress", "https://en.mercopress.com/rss.xml"),
     # Crypto (geopolitical)
     ("CoinDesk", "https://www.coindesk.com/arc/outboundfeeds/rss/"),
     ("Cointelegraph", "https://cointelegraph.com/rss"),
