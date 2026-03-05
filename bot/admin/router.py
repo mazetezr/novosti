@@ -157,9 +157,14 @@ async def cb_interval_menu(callback: CallbackQuery):
     current = await get_setting("interval_hours", "3")
     kb = InlineKeyboardMarkup(inline_keyboard=[
         [
+            InlineKeyboardButton(text="1ч", callback_data="set_iv:1"),
+            InlineKeyboardButton(text="2ч", callback_data="set_iv:2"),
             InlineKeyboardButton(text="3ч", callback_data="set_iv:3"),
+        ],
+        [
             InlineKeyboardButton(text="4ч", callback_data="set_iv:4"),
-            InlineKeyboardButton(text="5ч", callback_data="set_iv:5"),
+            InlineKeyboardButton(text="6ч", callback_data="set_iv:6"),
+            InlineKeyboardButton(text="12ч", callback_data="set_iv:12"),
         ],
         [InlineKeyboardButton(text="✏️ Ввести вручную", callback_data="set_iv_custom")],
         [InlineKeyboardButton(text="◀️ Назад", callback_data="admin_back")],
@@ -231,8 +236,13 @@ async def _apply_interval(hours: int):
     from apscheduler.triggers.interval import IntervalTrigger
     sched = get_scheduler()
     if sched:
-        sched.reschedule_job("news_cycle", trigger=IntervalTrigger(hours=hours))
-        logger.info("Rescheduled news_cycle to every %d hours", hours)
+        try:
+            sched.reschedule_job("news_cycle", trigger=IntervalTrigger(hours=hours))
+            logger.info("Rescheduled news_cycle to every %d hours", hours)
+        except Exception as e:
+            logger.error("Failed to reschedule news_cycle: %s", e)
+    else:
+        logger.warning("Scheduler not running, interval saved to DB but not applied in memory")
 
 
 # --- List topics ---
