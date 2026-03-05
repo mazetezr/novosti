@@ -83,6 +83,34 @@ def _split_message(text: str) -> list[str]:
     return parts
 
 
+async def send_to_admins(text: str):
+    """Send a plain message to all admins (DM). Used for debug reports."""
+    from bot.config import ADMIN_IDS
+    if not ADMIN_IDS:
+        logger.warning("send_to_admins: ADMIN_IDS is empty, skipping")
+        return
+    bot = Bot(token=TELEGRAM_BOT_TOKEN)
+    try:
+        parts = _split_message(text)
+        for admin_id in ADMIN_IDS:
+            for part in parts:
+                for attempt in range(3):
+                    try:
+                        await bot.send_message(
+                            chat_id=admin_id,
+                            text=part,
+                            parse_mode="HTML",
+                            disable_web_page_preview=True,
+                        )
+                        break
+                    except Exception as e:
+                        logger.warning("DM to admin %d attempt %d failed: %s", admin_id, attempt + 1, e)
+                        if attempt < 2:
+                            await asyncio.sleep(5)
+    finally:
+        await bot.session.close()
+
+
 async def post_to_channel(summary: str):
     if not summary:
         logger.warning("Empty summary, skipping post")

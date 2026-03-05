@@ -28,13 +28,6 @@ RSS_FEEDS = [
     ("UNIAN", "https://www.unian.info/rss/news.rss"),
     # Defense
     ("Defense News", "https://www.defensenews.com/rss/"),
-    # Crypto (geopolitical)
-    ("CoinDesk", "https://www.coindesk.com/arc/outboundfeeds/rss/"),
-    ("Cointelegraph", "https://cointelegraph.com/rss"),
-    # Markets / Energy
-    ("CNBC World", "https://search.cnbc.com/rs/search/combinedcms/view.xml?partnerId=wrss01&id=100727362"),
-    ("MarketWatch", "https://feeds.marketwatch.com/marketwatch/topstories/"),
-    ("OilPrice", "https://oilprice.com/rss/main"),
 ]
 
 

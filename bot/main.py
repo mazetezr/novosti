@@ -13,7 +13,7 @@ from bot.fetcher.models import NewsItem
 from bot.fetcher.rss import fetch_rss
 from bot.fetcher.thenewsapi import fetch_thenewsapi
 from bot.summarizer.llm import summarize
-from bot.poster.telegram import post_to_channel
+from bot.poster.telegram import post_to_channel, send_to_admins
 from bot.admin.router import router as admin_router
 
 from datetime import datetime, timezone
@@ -41,6 +41,20 @@ def deduplicate(items: list[NewsItem]) -> list[NewsItem]:
             seen.add(item.url)
             result.append(item)
     return result
+
+
+async def _send_rejected_report(rejected: list, total: int):
+    """Format and send rejected articles list to admins."""
+    lines = [
+        f"🗑 <b>ОТСЕЯНО БОТОМ</b> — {len(rejected)} из {total} статей\n"
+        f"<i>(новости, не попавшие в сводку)</i>\n"
+    ]
+    for i, item in enumerate(rejected, 1):
+        lines.append(
+            f"{i}. <b>{item.title}</b>\n"
+            f"   <i>{item.source}</i> · <a href=\"{item.url}\">ссылка</a>"
+        )
+    await send_to_admins("\n".join(lines))
 
 
 async def run_cycle():
@@ -82,7 +96,7 @@ async def run_cycle():
             new_news_sorted = new_news
 
         # Summarize with LLM
-        summary = await summarize(new_news_sorted)
+        summary, cited_indices = await summarize(new_news_sorted)
         if not summary:
             logger.error("LLM returned empty summary, skipping post")
             return
@@ -90,6 +104,15 @@ async def run_cycle():
         # Post to Telegram
         await post_to_channel(summary)
         logger.info("Posted to Telegram successfully")
+
+        # Send rejected articles to admins for debugging
+        rejected = [
+            item for i, item in enumerate(new_news_sorted, 1)
+            if i not in cited_indices
+        ]
+        if rejected:
+            logger.info("Rejected articles: %d (sending to admins)", len(rejected))
+            await _send_rejected_report(rejected, len(new_news_sorted))
 
         # Update cursor and mark URLs as seen
         await update_cursor(datetime.now(timezone.utc))
