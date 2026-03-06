@@ -10,9 +10,9 @@ logger = logging.getLogger(__name__)
 OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions"
 MODEL = "openai/gpt-4o-mini"
 
-SYSTEM_PROMPT = """Ты — редактор новостного канала об Иране.
+SYSTEM_PROMPT_TEMPLATE = """Ты — редактор новостного канала об Иране.
 
-ЗАДАЧА: Из пронумерованного списка заголовков выбери 5 самых важных новостей про Иран. Переведи каждый заголовок на русский и напиши ОДНО предложение — сам факт. Всё.
+ЗАДАЧА: Из пронумерованного списка заголовков выбери {news_count} самых важных новостей про Иран. Переведи каждый заголовок на русский и напиши ОДНО предложение — сам факт. Всё.
 
 СТРОГИЕ ЗАПРЕТЫ:
 - ЗАПРЕЩЕНО добавлять свои выводы, интерпретации, пояснения
@@ -55,9 +55,11 @@ SYSTEM_PROMPT = """Ты — редактор новостного канала �
 "Взрывы в Тегеране, что указывает на эскалацию насилия в регионе" — ЗАПРЕЩЕНО, убери всё после факта."""
 
 
-async def summarize(news: list[NewsItem], previous_summaries: list[str] | None = None) -> tuple[str, set[int]]:
+async def summarize(news: list[NewsItem], previous_summaries: list[str] | None = None, news_count: int = 5) -> tuple[str, set[int]]:
     if not news:
         return "", set()
+
+    system_prompt = SYSTEM_PROMPT_TEMPLATE.format(news_count=news_count)
 
     lines = []
     source_map = {}
@@ -78,7 +80,7 @@ async def summarize(news: list[NewsItem], previous_summaries: list[str] | None =
     payload = {
         "model": MODEL,
         "messages": [
-            {"role": "system", "content": SYSTEM_PROMPT},
+            {"role": "system", "content": system_prompt},
             {"role": "user", "content": user_text},
         ],
         "max_tokens": 12000,

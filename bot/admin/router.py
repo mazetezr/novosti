@@ -23,6 +23,7 @@ class AdminFSM(StatesGroup):
     waiting_for_interval = State()
     waiting_for_reset_hours = State()
     waiting_for_stopword = State()
+    waiting_for_news_count = State()
 
 
 def _is_admin(user_id: int) -> bool:
@@ -36,6 +37,7 @@ def _admin_kb() -> InlineKeyboardMarkup:
         [InlineKeyboardButton(text="🗑 Удалить тему", callback_data="topics_del_menu")],
         [InlineKeyboardButton(text="🚫 Стоп-слова", callback_data="stop_menu")],
         [InlineKeyboardButton(text="🕐 Частота постов", callback_data="interval_menu")],
+        [InlineKeyboardButton(text="📰 Кол-во новостей", callback_data="newscount_menu")],
         [InlineKeyboardButton(text="🔄 Сбросить курсор", callback_data="reset_cursor")],
     ])
 
@@ -244,6 +246,86 @@ async def _apply_interval(hours: int):
             logger.error("Failed to reschedule news_cycle: %s", e)
     else:
         logger.warning("Scheduler not running, interval saved to DB but not applied in memory")
+
+
+# --- News count control ---
+
+@router.callback_query(F.data == "newscount_menu")
+async def cb_newscount_menu(callback: CallbackQuery):
+    if not _is_admin(callback.from_user.id):
+        return
+    current = await get_setting("news_count", "5")
+    kb = InlineKeyboardMarkup(inline_keyboard=[
+        [
+            InlineKeyboardButton(text="3", callback_data="set_nc:3"),
+            InlineKeyboardButton(text="5", callback_data="set_nc:5"),
+            InlineKeyboardButton(text="7", callback_data="set_nc:7"),
+        ],
+        [
+            InlineKeyboardButton(text="8", callback_data="set_nc:8"),
+            InlineKeyboardButton(text="10", callback_data="set_nc:10"),
+            InlineKeyboardButton(text="15", callback_data="set_nc:15"),
+        ],
+        [InlineKeyboardButton(text="✏️ Ввести вручную", callback_data="set_nc_custom")],
+        [InlineKeyboardButton(text="◀️ Назад", callback_data="admin_back")],
+    ])
+    await callback.message.edit_text(
+        f"📰 <b>Кол-во новостей в посте</b>\nСейчас: <b>{current}</b>\n\nВыберите или введите:",
+        reply_markup=kb,
+        parse_mode="HTML",
+    )
+    await callback.answer()
+
+
+@router.callback_query(F.data.startswith("set_nc:"))
+async def cb_set_newscount(callback: CallbackQuery):
+    if not _is_admin(callback.from_user.id):
+        return
+    count = int(callback.data.split(":")[1])
+    await set_setting("news_count", str(count))
+    await callback.answer(f"Установлено: {count} новостей", show_alert=True)
+    await callback.message.edit_text(
+        f"✅ Кол-во новостей обновлено: <b>{count}</b>",
+        reply_markup=_admin_kb(),
+        parse_mode="HTML",
+    )
+
+
+@router.callback_query(F.data == "set_nc_custom")
+async def cb_set_newscount_custom(callback: CallbackQuery, state: FSMContext):
+    if not _is_admin(callback.from_user.id):
+        return
+    await state.set_state(AdminFSM.waiting_for_news_count)
+    kb = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="❌ Отмена", callback_data="admin_back")],
+    ])
+    await callback.message.edit_text(
+        "Введите количество новостей (от 1 до 20):",
+        reply_markup=kb,
+    )
+    await callback.answer()
+
+
+@router.message(AdminFSM.waiting_for_news_count)
+async def process_news_count(message: Message, state: FSMContext):
+    if not _is_admin(message.from_user.id):
+        return
+    text = message.text.strip()
+    if not text.isdigit() or not (1 <= int(text) <= 20):
+        await message.answer(
+            "⚠️ Введите целое число от 1 до 20.",
+            reply_markup=_admin_kb(),
+        )
+        await state.clear()
+        return
+    count = int(text)
+    await set_setting("news_count", str(count))
+    await state.clear()
+    await message.answer(
+        f"✅ Кол-во новостей обновлено: <b>{count}</b>",
+        reply_markup=_admin_kb(),
+        parse_mode="HTML",
+    )
 
 
 # --- List topics ---

@@ -98,8 +98,11 @@ async def run_cycle():
         # Get previous summaries for anti-duplicate context
         previous_summaries = await get_last_summaries(2)
 
+        # Read news_count setting
+        news_count = int(await get_setting("news_count", "5"))
+
         # Summarize with LLM
-        summary, cited_indices = await summarize(new_news_sorted, previous_summaries)
+        summary, cited_indices = await summarize(new_news_sorted, previous_summaries, news_count=news_count)
         if not summary:
             logger.error("LLM returned empty summary, skipping post")
             return
