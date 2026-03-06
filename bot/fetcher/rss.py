@@ -12,20 +12,15 @@ logger = logging.getLogger(__name__)
 RSS_FEEDS = [
     # Global / wire
     ("Reuters World", "https://feeds.reuters.com/reuters/worldNews"),
-    ("Reuters Business", "https://feeds.reuters.com/reuters/businessNews"),
     ("Al Jazeera", "https://www.aljazeera.com/xml/rss/all.xml"),
     ("BBC World", "http://feeds.bbci.co.uk/news/world/rss.xml"),
     ("Associated Press", "https://apnews.com/rss"),
-    ("Axios World", "https://api.axios.com/feed/"),
+    ("France 24", "https://www.france24.com/en/middle-east/rss"),
     # Middle East / Iran
     ("Middle East Eye", "https://www.middleeasteye.net/rss"),
     ("Times of Israel", "https://www.timesofisrael.com/feed/"),
     ("Iran International", "https://www.iranintl.com/en/rss"),
-    # Ukraine / Russia
-    ("ISW", "https://www.understandingwar.org/rss.xml"),
-    ("Kyiv Independent", "https://kyivindependent.com/feed/"),
-    ("Kyiv Post", "https://www.kyivpost.com/rss"),
-    ("UNIAN", "https://www.unian.info/rss/news.rss"),
+    ("Axios World", "https://api.axios.com/feed/"),
     # Defense
     ("Defense News", "https://www.defensenews.com/rss/"),
 ]
