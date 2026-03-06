@@ -100,7 +100,7 @@ async def send_to_admins(text: str):
                             chat_id=admin_id,
                             text=part,
                             parse_mode="HTML",
-                            link_preview_is_disabled=True,
+                            disable_web_page_preview=True,
                         )
                         break
                     except Exception as e:
