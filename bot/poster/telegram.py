@@ -116,8 +116,7 @@ async def post_to_channel(summary: str):
         logger.warning("Empty summary, skipping post")
         return
 
-    full_text = _build_header() + "\n" + summary
-    full_text = _sanitize_html(full_text)
+    full_text = _sanitize_html(summary)
     parts = _split_message(full_text)
 
     bot = Bot(token=TELEGRAM_BOT_TOKEN)

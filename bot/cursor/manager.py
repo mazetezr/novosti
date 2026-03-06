@@ -39,6 +39,13 @@ async def init_db():
                 value TEXT NOT NULL
             )
         """)
+        await db.execute("""
+            CREATE TABLE IF NOT EXISTS summaries (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                text TEXT NOT NULL,
+                created_at DATETIME NOT NULL
+            )
+        """)
         await db.commit()
 
 
@@ -90,6 +97,32 @@ async def cleanup_seen(days: int = 7):
     logger.info("Cleaned up seen_urls older than %d days", days)
 
 
+# --- Summaries history (for anti-duplicate context) ---
+
+async def save_summary(text: str):
+    now = datetime.now(timezone.utc).isoformat()
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute(
+            "INSERT INTO summaries (text, created_at) VALUES (?, ?)",
+            (text, now),
+        )
+        # Keep only last 5 summaries
+        await db.execute("""
+            DELETE FROM summaries WHERE id NOT IN (
+                SELECT id FROM summaries ORDER BY id DESC LIMIT 5
+            )
+        """)
+        await db.commit()
+
+
+async def get_last_summaries(n: int = 2) -> list[str]:
+    async with aiosqlite.connect(DB_PATH) as db:
+        rows = await db.execute_fetchall(
+            "SELECT text FROM summaries ORDER BY id DESC LIMIT ?", (n,)
+        )
+        return [row[0] for row in rows]
+
+
 # --- Settings KV ---
 
 async def get_setting(key: str, default: str = "") -> str:
@@ -112,27 +145,57 @@ async def set_setting(key: str, value: str):
 # --- Topics CRUD ---
 
 DEFAULT_TOPICS = [
-    "war", "conflict", "military", "attack", "airstrike", "missile",
-    "Iran", "Israel", "Gaza", "Ukraine", "Russia", "Hamas", "Hezbollah",
-    "sanctions", "nuclear", "troops", "offensive", "ceasefire",
-    "oil", "OPEC", "gold", "markets", "economy", "inflation",
-    "metals", "France", "Germany", "USA", "Europe", "EU", "NATO",
+    # Core Iran
+    "Iran", "IRGC", "Khamenei", "Tehran", "Persian Gulf", "Strait of Hormuz",
+    # Nuclear
+    "uranium", "enrichment", "IAEA", "ballistic", "warhead", "nonproliferation",
+    # Iran proxies
+    "Hezbollah", "Hamas", "Houthi",
+    # Middle East theater
+    "Israel", "Gaza", "Lebanon", "Syria", "Iraq", "Yemen",
+    # Key adversaries / agencies
+    "USA", "Pentagon", "CIA", "Mossad", "IDF", "Netanyahu",
+    # Regional actors
+    "Saudi Arabia", "UAE", "Qatar", "Turkey", "Erdogan",
+    # Military terms (Iran context)
+    "sanctions", "nuclear", "airstrike", "missile", "drone", "strike",
+    "bombing", "military", "attack", "war", "conflict", "ceasefire",
+    "escalation", "deterrence", "provocation",
+    "navy", "warship", "blockade",
+    "arms deal", "weapons supply", "military aid", "troop deployment",
+    "sabotage", "espionage", "cyberattack", "assassination",
 ]
 
-# Extra topics added to existing DBs on every startup (INSERT OR IGNORE is safe)
 EXTRA_TOPICS = [
-    # Asia
-    "China", "India", "Pakistan", "Taiwan", "North Korea", "South Korea",
-    "Xi Jinping", "Modi", "Tibet", "Xinjiang", "South China Sea",
-    # Africa
+    # Extended Iran
+    "ayatollah", "Quds Force", "Basij", "proxy war",
+    "Natanz", "Fordow", "Bushehr", "Parchin",
+    "West Bank", "Rafah", "Red Sea",
+    "aircraft carrier", "CENTCOM", "B-52",
+    "oil tanker", "Strait of Hormuz",
+    "Pakistan", "Oman", "Bahrain", "Kuwait",
+    "chemical", "biological", "hypersonic",
+    "troops", "offensive", "explosion", "weapons",
+    "Security Council", "UN",
+]
+
+# Topics to remove on startup (no longer relevant after Iran-focus pivot)
+DEPRECATED_TOPICS = [
+    "Ukraine", "Russia", "Zelensky", "Kremlin", "FSB",
+    "Europe", "EU", "NATO", "France", "Germany",
+    "Poland", "Hungary", "Estonia", "Latvia", "Lithuania", "Finland", "Sweden",
+    "OPEC", "inflation", "economy", "markets", "oil", "gold", "metals",
+    "North Korea", "Taiwan", "Xi Jinping", "Modi", "Tibet", "Xinjiang",
+    "South China Sea", "South Korea", "China", "India",
     "Sudan", "Mali", "Libya", "Sahel", "Niger", "coup", "Somalia",
     "Ethiopia", "Burkina Faso", "mercenary", "Wagner",
-    # Latin America
     "Venezuela", "Cuba", "Maduro", "Nicaragua", "Haiti", "cartel",
     "Colombia", "Bolivia",
-    # Crypto geopolitical
     "Bitcoin", "crypto", "cryptocurrency", "blockchain", "CBDC",
     "stablecoin", "Tether", "crypto sanctions",
+    "frontline", "conscription", "mobilization", "prisoner exchange",
+    "war crimes", "genocide", "evacuation",
+    "artillery", "rebel", "insurgency",
 ]
 
 DEFAULT_STOPWORDS = [
@@ -142,29 +205,32 @@ DEFAULT_STOPWORDS = [
     "weather forecast", "horoscope", "lottery", "game", "gaming",
     "reality show", "kardashian", "hollywood", "bollywood",
     "stock tips", "crypto pump", "NFT", "meme coin",
+    "Ukraine", "Zelensky", "Kremlin", "frontline",
 ]
 
 
 async def seed_default_topics():
     async with aiosqlite.connect(DB_PATH) as db:
-        rows = await db.execute_fetchall("SELECT COUNT(*) FROM topics")
-        if rows[0][0] == 0:
-            for kw in DEFAULT_TOPICS:
-                await db.execute(
-                    "INSERT OR IGNORE INTO topics (keyword) VALUES (?)", (kw,)
-                )
+        # Remove deprecated topics that are no longer relevant
+        removed = 0
+        for kw in DEPRECATED_TOPICS:
+            cur = await db.execute("DELETE FROM topics WHERE keyword = ?", (kw,))
+            removed += cur.rowcount
+        if removed:
             await db.commit()
-            logger.info("Seeded %d default topics", len(DEFAULT_TOPICS))
-        # Always add extra topics (INSERT OR IGNORE is safe for existing DBs)
+            logger.info("Removed %d deprecated topics", removed)
+
+        # Ensure all default + extra topics exist
         added = 0
-        for kw in EXTRA_TOPICS:
+        for kw in DEFAULT_TOPICS + EXTRA_TOPICS:
             cur = await db.execute(
                 "INSERT OR IGNORE INTO topics (keyword) VALUES (?)", (kw,)
             )
             added += cur.rowcount
         if added:
             await db.commit()
-            logger.info("Added %d new region/crypto topics to DB", added)
+            logger.info("Added %d Iran-focused topics", added)
+
         # Seed default stopwords
         rows = await db.execute_fetchall("SELECT COUNT(*) FROM stopwords")
         if rows[0][0] == 0:

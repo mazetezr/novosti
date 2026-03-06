@@ -8,7 +8,7 @@ from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.interval import IntervalTrigger
 
 from bot.config import LOG_LEVEL, LOG_PATH, DB_PATH, TELEGRAM_BOT_TOKEN
-from bot.cursor.manager import init_db, get_cursor, update_cursor, mark_seen, filter_seen, cleanup_seen, seed_default_topics, get_setting
+from bot.cursor.manager import init_db, get_cursor, update_cursor, mark_seen, filter_seen, cleanup_seen, seed_default_topics, get_setting, save_summary, get_last_summaries
 from bot.fetcher.models import NewsItem
 from bot.fetcher.rss import fetch_rss
 from bot.fetcher.thenewsapi import fetch_thenewsapi
@@ -95,8 +95,11 @@ async def run_cycle():
         else:
             new_news_sorted = new_news
 
+        # Get previous summaries for anti-duplicate context
+        previous_summaries = await get_last_summaries(2)
+
         # Summarize with LLM
-        summary, cited_indices = await summarize(new_news_sorted)
+        summary, cited_indices = await summarize(new_news_sorted, previous_summaries)
         if not summary:
             logger.error("LLM returned empty summary, skipping post")
             return
@@ -104,6 +107,9 @@ async def run_cycle():
         # Post to Telegram
         await post_to_channel(summary)
         logger.info("Posted to Telegram successfully")
+
+        # Save summary for future anti-duplicate context
+        await save_summary(summary)
 
         # Send rejected articles to admins for debugging
         rejected = [

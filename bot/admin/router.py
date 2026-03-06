@@ -11,7 +11,7 @@ from bot.cursor.manager import (
     get_topics, add_topic, remove_topic,
     get_stopwords, add_stopword, remove_stopword,
     get_setting, set_setting, reset_cursor,
-    DEFAULT_TOPICS,
+    DEFAULT_TOPICS, EXTRA_TOPICS,
 )
 
 logger = logging.getLogger(__name__)
@@ -553,11 +553,12 @@ async def cmd_resettopics(message: Message):
     from bot.config import DB_PATH
     async with aiosqlite.connect(DB_PATH) as db:
         await db.execute("DELETE FROM topics")
-        for kw in DEFAULT_TOPICS:
+        all_topics = DEFAULT_TOPICS + EXTRA_TOPICS
+        for kw in all_topics:
             await db.execute("INSERT OR IGNORE INTO topics (keyword) VALUES (?)", (kw,))
         await db.commit()
     await message.answer(
-        f"♻️ Темы сброшены к дефолтным — <b>{len(DEFAULT_TOPICS)} штук</b>.\n"
+        f"♻️ Темы сброшены к дефолтным — <b>{len(all_topics)} штук</b>.\n"
         f"Используй /topics чтобы проверить.",
         parse_mode="HTML",
     )
