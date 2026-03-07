@@ -96,7 +96,7 @@ async def run_cycle():
             new_news_sorted = new_news
 
         # Get previous summaries for anti-duplicate context
-        previous_summaries = await get_last_summaries(2)
+        previous_summaries = await get_last_summaries(5)
 
         # Read news_count setting
         news_count = int(await get_setting("news_count", "5"))
