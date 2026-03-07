@@ -63,7 +63,7 @@ SYSTEM_PROMPT_TEMPLATE = """Ты — редактор новостного ка�
 "Взрывы в Тегеране, что указывает на эскалацию насилия в регионе" — ЗАПРЕЩЕНО, убери всё после факта."""
 
 
-async def summarize(news: list[NewsItem], previous_summaries: list[str] | None = None, news_count: int = 5) -> tuple[str, set[int]]:
+async def summarize(news: list[NewsItem], previous_summaries: list[dict] | None = None, news_count: int = 5) -> tuple[str, set[int]]:
     if not news:
         return "", set()
 
@@ -77,11 +77,21 @@ async def summarize(news: list[NewsItem], previous_summaries: list[str] | None =
     user_text = "Вот заголовки новостей за последние 3 часа. Составь сводку:\n\n" + "\n".join(lines)
 
     if previous_summaries:
-        user_text += "\n\n⚠️ ПРЕДЫДУЩИЕ СВОДКИ КАНАЛА — ПРОЧИТАЙ ВНИМАТЕЛЬНО.\n"
-        user_text += "Всё что ниже УЖЕ ОПУБЛИКОВАНО. Если новость повторяет факт из этих сводок — НЕ ВКЛЮЧАЙ её, даже если она из другого источника или сформулирована иначе.\n"
-        user_text += "Включай ТОЛЬКО то, чего здесь НЕТ, или НОВЫЕ ДЕТАЛИ уже известных событий.\n\n"
+        # Collect all previously cited English titles for direct comparison
+        all_prev_titles = []
+        for s in previous_summaries:
+            all_prev_titles.extend(s.get("cited_titles", []))
+
+        if all_prev_titles:
+            user_text += "\n\n🚫 СТОП-ЛИСТ ЗАГОЛОВКОВ — эти статьи УЖЕ были в предыдущих постах канала.\n"
+            user_text += "НЕ БЕРИ новости на ту же тему, даже если заголовок немного отличается:\n\n"
+            for i, title in enumerate(all_prev_titles, 1):
+                user_text += f"  ✗ {title}\n"
+
+        user_text += "\n\n⚠️ ПРЕДЫДУЩИЕ СВОДКИ КАНАЛА (русский текст, уже опубликовано):\n"
+        user_text += "Если новость повторяет факт отсюда — НЕ ВКЛЮЧАЙ.\n\n"
         for idx, s in enumerate(previous_summaries, 1):
-            user_text += f"=== Сводка {idx} (уже опубликована) ===\n{s}\n\n"
+            user_text += f"=== Сводка {idx} ===\n{s.get('text', '')}\n\n"
 
     headers = {
         "Authorization": f"Bearer {OPENROUTER_API_KEY}",

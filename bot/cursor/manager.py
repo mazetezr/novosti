@@ -1,4 +1,5 @@
 import aiosqlite
+import json
 import logging
 from datetime import datetime, timedelta, timezone
 
@@ -43,9 +44,15 @@ async def init_db():
             CREATE TABLE IF NOT EXISTS summaries (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 text TEXT NOT NULL,
+                cited_titles TEXT NOT NULL DEFAULT '[]',
                 created_at DATETIME NOT NULL
             )
         """)
+        # Migrate: add cited_titles if missing
+        try:
+            await db.execute("ALTER TABLE summaries ADD COLUMN cited_titles TEXT NOT NULL DEFAULT '[]'")
+        except Exception:
+            pass  # column already exists
         await db.commit()
 
 
@@ -99,12 +106,13 @@ async def cleanup_seen(days: int = 7):
 
 # --- Summaries history (for anti-duplicate context) ---
 
-async def save_summary(text: str):
+async def save_summary(text: str, cited_titles: list[str] | None = None):
     now = datetime.now(timezone.utc).isoformat()
+    titles_json = json.dumps(cited_titles or [], ensure_ascii=False)
     async with aiosqlite.connect(DB_PATH) as db:
         await db.execute(
-            "INSERT INTO summaries (text, created_at) VALUES (?, ?)",
-            (text, now),
+            "INSERT INTO summaries (text, cited_titles, created_at) VALUES (?, ?, ?)",
+            (text, titles_json, now),
         )
         # Keep only last 5 summaries
         await db.execute("""
@@ -115,12 +123,20 @@ async def save_summary(text: str):
         await db.commit()
 
 
-async def get_last_summaries(n: int = 2) -> list[str]:
+async def get_last_summaries(n: int = 5) -> list[dict]:
+    """Return last N summaries with text and cited_titles."""
     async with aiosqlite.connect(DB_PATH) as db:
         rows = await db.execute_fetchall(
-            "SELECT text FROM summaries ORDER BY id DESC LIMIT ?", (n,)
+            "SELECT text, cited_titles FROM summaries ORDER BY id DESC LIMIT ?", (n,)
         )
-        return [row[0] for row in rows]
+        result = []
+        for row in rows:
+            try:
+                titles = json.loads(row[1]) if row[1] else []
+            except (json.JSONDecodeError, TypeError):
+                titles = []
+            result.append({"text": row[0], "cited_titles": titles})
+        return result
 
 
 # --- Settings KV ---

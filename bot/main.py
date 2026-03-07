@@ -96,13 +96,13 @@ async def run_cycle():
             new_news_sorted = new_news
 
         # Get previous summaries for anti-duplicate context
-        previous_summaries = await get_last_summaries(5)
+        prev_data = await get_last_summaries(5)
 
         # Read news_count setting
         news_count = int(await get_setting("news_count", "5"))
 
         # Summarize with LLM
-        summary, cited_indices = await summarize(new_news_sorted, previous_summaries, news_count=news_count)
+        summary, cited_indices = await summarize(new_news_sorted, prev_data, news_count=news_count)
         if not summary:
             logger.error("LLM returned empty summary, skipping post")
             return
@@ -111,8 +111,13 @@ async def run_cycle():
         await post_to_channel(summary)
         logger.info("Posted to Telegram successfully")
 
-        # Save summary for future anti-duplicate context
-        await save_summary(summary)
+        # Save summary + cited English titles for future anti-duplicate context
+        cited_titles = [
+            new_news_sorted[i - 1].title
+            for i in cited_indices
+            if 1 <= i <= len(new_news_sorted)
+        ]
+        await save_summary(summary, cited_titles)
 
         # Send rejected articles to admins for debugging
         rejected = [
