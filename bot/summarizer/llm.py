@@ -10,6 +10,11 @@ logger = logging.getLogger(__name__)
 OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions"
 MODEL = "openai/gpt-4o-mini"
 
+
+def _strip_html(text: str) -> str:
+    """Убрать HTML-теги из текста для чистого контекста."""
+    return re.sub(r"<[^>]+>", "", text)
+
 SYSTEM_PROMPT_TEMPLATE = """Ты — редактор новостного канала об Иране.
 
 ЗАДАЧА: Из пронумерованного списка заголовков выбери {news_count} самых важных новостей про Иран. Переведи каждый заголовок на русский и напиши ОДНО предложение — сам факт. Всё.
@@ -91,7 +96,8 @@ async def summarize(news: list[NewsItem], previous_summaries: list[dict] | None 
         user_text += "\n\n⚠️ ПРЕДЫДУЩИЕ СВОДКИ КАНАЛА (русский текст, уже опубликовано):\n"
         user_text += "Если новость повторяет факт отсюда — НЕ ВКЛЮЧАЙ.\n\n"
         for idx, s in enumerate(previous_summaries, 1):
-            user_text += f"=== Сводка {idx} ===\n{s.get('text', '')}\n\n"
+            clean_text = _strip_html(s.get("text", ""))
+            user_text += f"=== Сводка {idx} ===\n{clean_text}\n\n"
 
     headers = {
         "Authorization": f"Bearer {OPENROUTER_API_KEY}",

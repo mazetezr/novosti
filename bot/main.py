@@ -15,6 +15,7 @@ from bot.fetcher.thenewsapi import fetch_thenewsapi
 from bot.summarizer.llm import summarize
 from bot.poster.telegram import post_to_channel, send_to_admins
 from bot.admin.router import router as admin_router
+from bot.utils.dedup import filter_by_previous_titles, cluster_similar_articles
 
 from datetime import datetime, timezone
 
@@ -97,6 +98,23 @@ async def run_cycle():
 
         # Get previous summaries for anti-duplicate context
         prev_data = await get_last_summaries(5)
+
+        # --- Python-level дедупликация (до LLM) ---
+        # 1. Убрать статьи, дублирующие ранее опубликованные
+        all_prev_titles: list[str] = []
+        for s in prev_data:
+            all_prev_titles.extend(s.get("cited_titles", []))
+        if all_prev_titles:
+            new_news_sorted = filter_by_previous_titles(
+                new_news_sorted, all_prev_titles, threshold=0.35
+            )
+
+        # 2. Кластеризовать одинаковые события из разных источников
+        new_news_sorted = cluster_similar_articles(new_news_sorted, threshold=0.30)
+
+        if not new_news_sorted:
+            logger.info("All articles filtered as duplicates, skipping cycle")
+            return
 
         # Read news_count setting
         news_count = int(await get_setting("news_count", "5"))
