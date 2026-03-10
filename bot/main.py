@@ -13,9 +13,10 @@ from bot.fetcher.models import NewsItem
 from bot.fetcher.rss import fetch_rss
 from bot.fetcher.thenewsapi import fetch_thenewsapi
 from bot.summarizer.llm import summarize
-from bot.poster.telegram import post_to_channel, send_to_admins
+from bot.poster.telegram import post_to_channel
 from bot.admin.router import router as admin_router
 from bot.utils.dedup import filter_by_previous_titles, cluster_similar_articles
+from bot.state import set_scheduler
 
 from datetime import datetime, timezone
 
@@ -44,18 +45,18 @@ def deduplicate(items: list[NewsItem]) -> list[NewsItem]:
     return result
 
 
-async def _send_rejected_report(rejected: list, total: int):
-    """Format and send rejected articles list to admins."""
-    lines = [
-        f"🗑 <b>ОТСЕЯНО БОТОМ</b> — {len(rejected)} из {total} статей\n"
-        f"<i>(новости, не попавшие в сводку)</i>\n"
-    ]
-    for i, item in enumerate(rejected, 1):
-        lines.append(
-            f"{i}. <b>{item.title}</b>\n"
-            f"   <i>{item.source}</i> · <a href=\"{item.url}\">ссылка</a>"
-        )
-    await send_to_admins("\n".join(lines))
+# async def _send_rejected_report(rejected: list, total: int):
+#     """Format and send rejected articles list to admins."""
+#     lines = [
+#         f"🗑 <b>ОТСЕЯНО БОТОМ</b> — {len(rejected)} из {total} статей\n"
+#         f"<i>(новости, не попавшие в сводку)</i>\n"
+#     ]
+#     for i, item in enumerate(rejected, 1):
+#         lines.append(
+#             f"{i}. <b>{item.title}</b>\n"
+#             f"   <i>{item.source}</i> · <a href=\"{item.url}\">ссылка</a>"
+#         )
+#     await send_to_admins("\n".join(lines))
 
 
 async def run_cycle():
@@ -137,14 +138,15 @@ async def run_cycle():
         ]
         await save_summary(summary, cited_titles)
 
-        # Send rejected articles to admins for debugging
+        # Логируем отсеянные статьи (не вошли в сводку)
         rejected = [
             item for i, item in enumerate(new_news_sorted, 1)
             if i not in cited_indices
         ]
         if rejected:
-            logger.info("Rejected articles: %d (sending to admins)", len(rejected))
-            await _send_rejected_report(rejected, len(new_news_sorted))
+            logger.info("Отсеяно %d из %d статей:", len(rejected), len(new_news_sorted))
+            for i, item in enumerate(rejected, 1):
+                logger.info("  %d. %s [%s] %s", i, item.title, item.source, item.url)
 
         # Update cursor and mark URLs as seen
         await update_cursor(datetime.now(timezone.utc))
@@ -167,8 +169,8 @@ async def main():
     saved = await get_setting("interval_hours", "3")
     interval = int(saved)
     logger.info("Starting scheduler (every %d hours)...", interval)
-    global scheduler
     scheduler = AsyncIOScheduler()
+    set_scheduler(scheduler)
     scheduler.add_job(
         run_cycle,
         trigger=IntervalTrigger(hours=interval),
@@ -187,13 +189,6 @@ async def main():
     finally:
         scheduler.shutdown()
         await bot.session.close()
-
-
-scheduler: AsyncIOScheduler | None = None
-
-
-def get_scheduler() -> AsyncIOScheduler | None:
-    return scheduler
 
 
 if __name__ == "__main__":

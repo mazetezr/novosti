@@ -235,7 +235,7 @@ async def process_interval(message: Message, state: FSMContext):
 async def _apply_interval(hours: int):
     """Save interval to DB and reschedule the job."""
     await set_setting("interval_hours", str(hours))
-    from bot.main import get_scheduler
+    from bot.state import get_scheduler
     from apscheduler.triggers.interval import IntervalTrigger
     sched = get_scheduler()
     if sched:
