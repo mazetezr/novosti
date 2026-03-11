@@ -28,6 +28,11 @@ RSS_FEEDS = [
     ("Politico", "https://www.politico.com/rss/politics08.xml"),
     # Официальные заявления Трампа: указы, пресс-релизы, брифинги
     ("White House", "https://www.whitehouse.gov/feed/"),
+    # Китай / Тайвань
+    ("Reuters Asia", "https://feeds.reuters.com/reuters/AsiaNews"),
+    ("South China Morning Post", "https://www.scmp.com/rss/91/feed"),
+    ("The Diplomat", "https://thediplomat.com/feed/"),
+    ("Taiwan News", "https://www.taiwannews.com.tw/feed/news"),
 ]
 
 

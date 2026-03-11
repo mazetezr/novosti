@@ -184,6 +184,11 @@ DEFAULT_TOPICS = [
     "Trump", "White House", "tariff", "executive order",
     # Нефть и энергетика (релевантно для Ирана и региона)
     "oil", "OPEC", "crude", "energy",
+    # Китай / Тайвань
+    "China", "Taiwan", "Xi Jinping", "PLA", "CCP", "Beijing",
+    "Taiwan Strait", "South China Sea", "semiconductor", "chip war",
+    "PRC", "reunification", "independence referendum",
+    "TSMC", "blockade Taiwan", "cross-strait",
 ]
 
 EXTRA_TOPICS = [
@@ -197,6 +202,19 @@ EXTRA_TOPICS = [
     "chemical", "biological", "hypersonic",
     "troops", "offensive", "explosion", "weapons",
     "Security Council", "UN",
+    # Расширенный Китай / Тайвань
+    "People's Liberation Army", "PLA Navy", "PLA Air Force",
+    "Taiwan independence", "Taiwan defense", "Taiwan military",
+    "China military", "China drills", "China exercises",
+    "Taipei", "Tsai", "Lai Ching-te", "DPP",
+    "chip", "chips", "microchip", "semiconductors",
+    "Huawei", "SMIC", "export controls", "tech war",
+    "East China Sea", "Diaoyu", "Senkaku",
+    "Philippines", "Spratlys", "Paracel",
+    "US-China", "China-Taiwan", "strait crisis",
+    "amphibious", "invasion drill", "blockade",
+    "deterrence Taiwan", "Taiwan Relations Act",
+    "F-16", "arms sales Taiwan",
 ]
 
 # Topics to remove on startup (no longer relevant after Iran-focus pivot)
@@ -205,8 +223,8 @@ DEPRECATED_TOPICS = [
     "Europe", "EU", "NATO", "France", "Germany",
     "Poland", "Hungary", "Estonia", "Latvia", "Lithuania", "Finland", "Sweden",
     "inflation", "economy", "markets", "gold", "metals",
-    "North Korea", "Taiwan", "Xi Jinping", "Modi", "Tibet", "Xinjiang",
-    "South China Sea", "South Korea", "China", "India",
+    "North Korea", "Modi", "Tibet", "Xinjiang",
+    "South Korea", "India",
     "Sudan", "Mali", "Libya", "Sahel", "Niger", "coup", "Somalia",
     "Ethiopia", "Burkina Faso", "mercenary", "Wagner",
     "Venezuela", "Cuba", "Maduro", "Nicaragua", "Haiti", "cartel",

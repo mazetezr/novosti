@@ -70,7 +70,21 @@ async def cmd_post(message: Message):
     await message.answer("⏳ Запускаю сводку...")
     from bot.main import run_cycle
     await run_cycle()
-    await message.answer("✅ Цикл завершён.")
+
+    # Сбросить таймер: следующий авто-пост через interval_hours от сейчас
+    from bot.state import get_scheduler
+    from apscheduler.triggers.interval import IntervalTrigger
+    sched = get_scheduler()
+    if sched:
+        try:
+            interval = int(await get_setting("interval_hours", "3"))
+            sched.reschedule_job("news_cycle", trigger=IntervalTrigger(hours=interval))
+            await message.answer(f"✅ Цикл завершён. Следующая авто-сводка через <b>{interval}ч</b>.", parse_mode="HTML")
+        except Exception as e:
+            logger.error("Failed to reschedule after /post: %s", e)
+            await message.answer("✅ Цикл завершён.")
+    else:
+        await message.answer("✅ Цикл завершён.")
 
 
 # --- Reset cursor ---
