@@ -26,6 +26,8 @@ RSS_FEEDS = [
     # Trump / US Politics (фильтруются по ключевым словам бота)
     ("Reuters Politics", "https://feeds.reuters.com/reuters/politicsNews"),
     ("Politico", "https://www.politico.com/rss/politics08.xml"),
+    # Официальные заявления Трампа: указы, пресс-релизы, брифинги
+    ("White House", "https://www.whitehouse.gov/feed/"),
 ]
 
 

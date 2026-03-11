@@ -12,7 +12,6 @@ from bot.cursor.manager import init_db, get_cursor, update_cursor, mark_seen, fi
 from bot.fetcher.models import NewsItem
 from bot.fetcher.rss import fetch_rss
 from bot.fetcher.thenewsapi import fetch_thenewsapi
-from bot.fetcher.trump import fetch_trump
 from bot.summarizer.llm import summarize
 from bot.poster.telegram import post_to_channel
 from bot.admin.router import router as admin_router
@@ -67,18 +66,17 @@ async def run_cycle():
         logger.info("Cursor: %s", cursor_dt.isoformat())
 
         # Fetch from all sources in parallel
-        rss_news, api_news, trump_news = await asyncio.gather(
+        rss_news, api_news = await asyncio.gather(
             fetch_rss(cursor_dt),
             fetch_thenewsapi(cursor_dt),
-            fetch_trump(cursor_dt),
         )
 
-        if not rss_news and not api_news and not trump_news:
+        if not rss_news and not api_news:
             logger.warning("No news from any source, skipping cycle")
             return
 
         # Deduplicate across sources
-        all_news = deduplicate(rss_news + api_news + trump_news)
+        all_news = deduplicate(rss_news + api_news)
         logger.info("Total articles after dedup: %d", len(all_news))
 
         # Filter already seen URLs
