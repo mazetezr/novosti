@@ -107,11 +107,11 @@ async def run_cycle():
             all_prev_titles.extend(s.get("cited_titles", []))
         if all_prev_titles:
             new_news_sorted = filter_by_previous_titles(
-                new_news_sorted, all_prev_titles, threshold=0.35
+                new_news_sorted, all_prev_titles, threshold=0.60
             )
 
         # 2. Кластеризовать одинаковые события из разных источников
-        new_news_sorted = cluster_similar_articles(new_news_sorted, threshold=0.30)
+        new_news_sorted = cluster_similar_articles(new_news_sorted, threshold=0.45)
 
         if not new_news_sorted:
             logger.info("All articles filtered as duplicates, skipping cycle")
