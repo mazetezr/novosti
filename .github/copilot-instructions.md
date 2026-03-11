@@ -26,10 +26,11 @@ novosti/
 │   ├── __init__.py
 │   ├── fetcher/
 │   │   ├── models.py         # NewsItem dataclass (title, url, source, published)
-│   │   ├── rss.py            # 10 RSS-фидов, фильтрация по keywords/stopwords
-│   │   └── thenewsapi.py     # TheNewsAPI клиент (до 50 статей)
+│   │   ├── rss.py            # 13 RSS-фидов, фильтрация по keywords/stopwords
+│   │   ├── thenewsapi.py     # TheNewsAPI клиент (до 50 статей)
+│   │   └── trump.py          # (файл есть, не используется — архив Truth Social мёртв с 2022)
 │   ├── cursor/
-│   │   └── manager.py        # SQLite: cursor, seen_urls, topics, stopwords, settings, summaries (~310 строк)
+│   │   └── manager.py        # SQLite: cursor, seen_urls, topics, stopwords, settings, summaries
 │   ├── summarizer/
 │   │   └── llm.py            # OpenRouter GPT-4o-mini, динамический news_count, русский промпт
 │   ├── poster/
@@ -51,10 +52,28 @@ novosti/
 └── geopolitics-bot-changelog-v2.md  # Changelog v2: GDELT удалён → RSS+TheNewsAPI
 ```
 
+## RSS-фиды (bot/fetcher/rss.py) — 13 источников
+
+| Источник | Категория |
+|---|---|
+| Reuters World | Глобальные |
+| Al Jazeera | Глобальные |
+| BBC World | Глобальные |
+| Associated Press | Глобальные |
+| France 24 (Middle East) | Ближний Восток |
+| Middle East Eye | Ближний Восток |
+| Times of Israel | Ближний Восток |
+| Iran International | Иран |
+| Axios World | Глобальные |
+| Defense News | Оборона |
+| Reuters Politics | Трамп/США |
+| Politico | Трамп/США |
+| White House (whitehouse.gov/feed/) | Официальные заявления Трампа |
+
 ## Ключевая логика (run_cycle в main.py)
 
 1. Курсор из SQLite → время последней проверки
-2. Параллельный fetch: RSS (10 фидов) + TheNewsAPI
+2. Параллельный fetch: RSS (13 фидов) + TheNewsAPI
 3. Дедупликация по URL + фильтр seen_urls
 4. Лимит 60 статей → LLM (GPT-4o-mini)
 5. LLM выбирает N важнейших (настройка `news_count`), сводка на русском с цитатами [N]
@@ -67,7 +86,7 @@ novosti/
 
 - `cursor` — время последнего цикла
 - `seen_urls` — дедупликация (TTL 7 дней)
-- `topics` — ~80+ ключевых слов (Иран/геополитика)
+- `topics` — ~90 ключевых слов (Иран/геополитика + Трамп/нефть)
 - `stopwords` — блокировка нерелевантного
 - `settings` — KV-хранилище:
   - `interval_hours` — частота циклов (по умолчанию 3)
@@ -113,3 +132,8 @@ novosti/
 ### Сессия 2026-03-10
 - **Исправлен баг с частотой постинга**: при `python -m bot.main` модуль грузился как `__main__`, а `admin/router.py` импортировал `bot.main` — Python считал их разными модулями, `get_scheduler()` возвращал `None`, reschedule не работал. Создан `bot/state.py` — единое хранилище scheduler для всего процесса.
 - **Отсеянные статьи → логи**: отчёт об отклонённых статьях теперь пишется в `logs/bot.log` вместо DM админам. Функция `_send_rejected_report` в main.py закомментирована (не удалена).
+
+### Сессия 2026-03-11
+- **Добавлены источники про Трампа**: RSS-фиды Reuters Politics, Politico + White House (официальные заявления/указы). Ключевые слова пополнены: `Trump`, `White House`, `tariff`, `executive order`, `oil`, `OPEC`, `crude`, `energy` (`oil`/`OPEC` убраны из DEPRECATED — релевантны для Ирана).
+- **Попытка Truth Social**: создан `bot/fetcher/trump.py` для архива Truth Social постов (CNN/GitHub JSON). Выяснилось, что архив мёртв (последний пост — февраль 2022). Фетчер отключён (файл оставлен), вместо него добавлен White House RSS.
+- **Замечание по дедупу**: агрессивный дедуп (threshold 0.35/0.30) иногда отфильтровывает релевантные трамповские статьи как похожие на предыдущие сводки — норм поведение, следить в логах.
