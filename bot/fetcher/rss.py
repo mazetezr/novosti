@@ -23,6 +23,9 @@ RSS_FEEDS = [
     ("Axios World", "https://api.axios.com/feed/"),
     # Defense
     ("Defense News", "https://www.defensenews.com/rss/"),
+    # Trump / US Politics (фильтруются по ключевым словам бота)
+    ("Reuters Politics", "https://feeds.reuters.com/reuters/politicsNews"),
+    ("Politico", "https://www.politico.com/rss/politics08.xml"),
 ]
 
 

@@ -180,6 +180,10 @@ DEFAULT_TOPICS = [
     "navy", "warship", "blockade",
     "arms deal", "weapons supply", "military aid", "troop deployment",
     "sabotage", "espionage", "cyberattack", "assassination",
+    # Trump / US policy
+    "Trump", "White House", "tariff", "executive order",
+    # Нефть и энергетика (релевантно для Ирана и региона)
+    "oil", "OPEC", "crude", "energy",
 ]
 
 EXTRA_TOPICS = [
@@ -200,7 +204,7 @@ DEPRECATED_TOPICS = [
     "Ukraine", "Russia", "Zelensky", "Kremlin", "FSB",
     "Europe", "EU", "NATO", "France", "Germany",
     "Poland", "Hungary", "Estonia", "Latvia", "Lithuania", "Finland", "Sweden",
-    "OPEC", "inflation", "economy", "markets", "oil", "gold", "metals",
+    "inflation", "economy", "markets", "gold", "metals",
     "North Korea", "Taiwan", "Xi Jinping", "Modi", "Tibet", "Xinjiang",
     "South China Sea", "South Korea", "China", "India",
     "Sudan", "Mali", "Libya", "Sahel", "Niger", "coup", "Somalia",
