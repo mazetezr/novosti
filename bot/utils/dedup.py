@@ -6,6 +6,7 @@ import logging
 import re
 
 from bot.fetcher.models import NewsItem
+from bot.utils.news_priority import article_sort_key, event_tokens
 
 logger = logging.getLogger(__name__)
 
@@ -57,6 +58,19 @@ def title_jaccard(a: str, b: str) -> float:
     return len(wa & wb) / len(wa | wb)
 
 
+def event_similarity(
+    a_title: str,
+    b_title: str,
+    a_url: str = "",
+    b_url: str = "",
+) -> float:
+    ea = event_tokens(a_title, a_url)
+    eb = event_tokens(b_title, b_url)
+    if not ea or not eb:
+        return 0.0
+    return len(ea & eb) / len(ea | eb)
+
+
 def filter_by_previous_titles(
     articles: list[NewsItem],
     previous_titles: list[str],
@@ -74,7 +88,11 @@ def filter_by_previous_titles(
 
     for art in articles:
         max_sim = max(
-            title_similarity(art.title, prev) for prev in previous_titles
+            max(
+                title_similarity(art.title, prev),
+                event_similarity(art.title, prev),
+            )
+            for prev in previous_titles
         )
         if max_sim >= threshold:
             filtered_count += 1
@@ -109,19 +127,24 @@ def cluster_similar_articles(
     for i, art in enumerate(articles):
         if i in used:
             continue
-        # Найти все похожие
-        cluster_size = 1
+        cluster_members = [art]
         for j in range(i + 1, len(articles)):
             if j in used:
                 continue
-            if title_jaccard(art.title, articles[j].title) >= threshold:
+            other = articles[j]
+            similarity = max(
+                title_jaccard(art.title, other.title),
+                event_similarity(art.title, other.title, art.url, other.url),
+            )
+            if similarity >= threshold:
                 used.add(j)
-                cluster_size += 1
+                cluster_members.append(other)
+        cluster_size = len(cluster_members)
         if cluster_size > 1:
             logger.debug(
                 "Cluster of %d: %s", cluster_size, art.title[:80]
             )
-        kept.append(art)
+        kept.append(max(cluster_members, key=article_sort_key))
 
     if len(kept) < len(articles):
         logger.info(

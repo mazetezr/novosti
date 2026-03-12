@@ -114,16 +114,16 @@ async def save_summary(text: str, cited_titles: list[str] | None = None):
             "INSERT INTO summaries (text, cited_titles, created_at) VALUES (?, ?, ?)",
             (text, titles_json, now),
         )
-        # Keep only last 5 summaries
+        # Keep only last 10 summaries
         await db.execute("""
             DELETE FROM summaries WHERE id NOT IN (
-                SELECT id FROM summaries ORDER BY id DESC LIMIT 5
+                SELECT id FROM summaries ORDER BY id DESC LIMIT 10
             )
         """)
         await db.commit()
 
 
-async def get_last_summaries(n: int = 5) -> list[dict]:
+async def get_last_summaries(n: int = 10) -> list[dict]:
     """Return last N summaries with text and cited_titles."""
     async with aiosqlite.connect(DB_PATH) as db:
         rows = await db.execute_fetchall(

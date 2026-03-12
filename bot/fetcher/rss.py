@@ -6,6 +6,7 @@ from time import mktime
 
 from bot.fetcher.models import NewsItem
 from bot.cursor.manager import get_topics, get_stopwords
+from bot.utils.news_priority import has_stopword_signal, is_relevant_article
 
 logger = logging.getLogger(__name__)
 
@@ -36,16 +37,6 @@ RSS_FEEDS = [
 ]
 
 
-def _matches_keywords(text: str, keywords: list[str]) -> bool:
-    lower = text.lower()
-    return any(kw.lower() in lower for kw in keywords)
-
-
-def _has_stopword(text: str, stopwords: list[str]) -> bool:
-    lower = text.lower()
-    return any(sw.lower() in lower for sw in stopwords)
-
-
 def _parse_feed(name: str, url: str) -> tuple[str, object]:
     """Blocking feedparser call — runs in thread executor."""
     return name, feedparser.parse(url)
@@ -68,9 +59,9 @@ def _extract_items(
         summary = entry.get("summary", "")
         text = f"{title} {summary}"
 
-        if not _matches_keywords(text, keywords):
+        if not is_relevant_article(title, summary, link, keywords):
             continue
-        if _has_stopword(text, stopwords) and not _matches_keywords(title, keywords):
+        if has_stopword_signal(text, stopwords) and not is_relevant_article(title, "", link, keywords):
             continue
 
         pub = entry.get("published_parsed")

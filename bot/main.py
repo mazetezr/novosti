@@ -16,6 +16,7 @@ from bot.summarizer.llm import summarize
 from bot.poster.telegram import post_to_channel
 from bot.admin.router import router as admin_router
 from bot.utils.dedup import filter_by_previous_titles, cluster_similar_articles
+from bot.utils.news_priority import sort_articles
 from bot.state import set_scheduler
 
 from datetime import datetime, timezone
@@ -89,16 +90,16 @@ async def run_cycle():
             logger.info("No new articles, skipping cycle")
             return
 
-        # Cap articles sent to LLM — sort by published desc, take top 60
+        # Always sort before Python dedup so cluster representatives come from the
+        # best available source, not from feed order.
         MAX_ARTICLES = 60
-        if len(new_news) > MAX_ARTICLES:
-            new_news_sorted = sorted(new_news, key=lambda x: x.published, reverse=True)[:MAX_ARTICLES]
+        new_news_sorted = sort_articles(new_news)
+        if len(new_news_sorted) > MAX_ARTICLES:
+            new_news_sorted = new_news_sorted[:MAX_ARTICLES]
             logger.info("Capped articles from %d to %d for LLM", len(new_news), MAX_ARTICLES)
-        else:
-            new_news_sorted = new_news
 
         # Get previous summaries for anti-duplicate context
-        prev_data = await get_last_summaries(5)
+        prev_data = await get_last_summaries(10)
 
         # --- Python-level дедупликация (до LLM) ---
         # 1. Убрать статьи, дублирующие ранее опубликованные
