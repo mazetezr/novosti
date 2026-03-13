@@ -103,6 +103,29 @@ _BLOCKED_TITLE_PATTERNS = (
     "podcast",
 )
 
+_ANALYSIS_URL_FRAGMENTS = (
+    "/analysis/",
+    "/tv-shows/",
+    "/discover/",
+)
+
+_EXPLAINER_TITLE_PATTERNS = (
+    "what is happening",
+    "what's happening",
+    "what happened",
+    "what's happened",
+    "what we know",
+    "explainer",
+    "analysis",
+)
+
+_EXPLAINER_TITLE_PREFIXES = (
+    "how ",
+    "why ",
+    "could ",
+    "will ",
+)
+
 _GLOBAL_CONTEXT_TERMS = (
     "military",
     "missile",
@@ -137,6 +160,91 @@ _GLOBAL_CONTEXT_TERMS = (
     "security council",
     "arms sales",
     "export controls",
+)
+
+_HIGH_IMPACT_TERMS = (
+    "intercept",
+    "intercepted",
+    "interception",
+    "escort",
+    "escorts",
+    "escorting",
+    "blockade",
+    "closed",
+    "closure",
+    "attack",
+    "attacks",
+    "strike",
+    "strikes",
+    "missile",
+    "missiles",
+    "rocket",
+    "rockets",
+    "drone",
+    "drones",
+    "warship",
+    "warships",
+    "carrier",
+    "carriers",
+    "crash",
+    "crashes",
+    "killed",
+    "dead",
+    "death",
+    "wounded",
+    "injured",
+    "sanctions",
+    "tariff",
+    "tariffs",
+    "export controls",
+    "rescue",
+)
+
+_MEDIUM_IMPACT_TERMS = (
+    "talks",
+    "negotiations",
+    "ceasefire",
+    "security council",
+    "opec",
+    "opec+",
+    "oil",
+    "crude",
+    "tanker",
+    "shipping",
+    "semiconductor",
+    "chip",
+    "chips",
+    "arms sales",
+    "drill",
+    "drills",
+    "exercise",
+    "exercises",
+    "deployment",
+    "deploys",
+    "troops",
+)
+
+_RHETORIC_TERMS = (
+    "warns",
+    "vows",
+    "threatens",
+    "threat",
+    "says",
+    "slams",
+    "urges",
+    "calls for",
+    "defiant",
+    "expert",
+)
+
+_HUMAN_INTEREST_TERMS = (
+    "school",
+    "student",
+    "synagogue",
+    "college",
+    "campus",
+    "museum",
+    "profile",
 )
 
 _GENERIC_TOPIC_KEYWORDS = {
@@ -348,6 +456,22 @@ _EVENT_SYNONYMS = {
     "maneuvers": "maneuver",
     "exercises": "exercise",
     "drills": "exercise",
+    "missiles": "missile",
+    "rockets": "missile",
+    "intercepted": "intercept",
+    "interception": "intercept",
+    "escorts": "escort",
+    "escorting": "escort",
+    "closure": "blockade",
+    "closed": "blockade",
+    "killed": "death",
+    "dead": "death",
+    "deaths": "death",
+    "dies": "death",
+    "wounded": "injury",
+    "injured": "injury",
+    "injuries": "injury",
+    "crashes": "crash",
 }
 
 _EVENT_STOPWORDS = frozenset(
@@ -518,6 +642,19 @@ def has_stopword_signal(text: str, stopwords: list[str]) -> bool:
     return bool(matched_terms(text, stopwords))
 
 
+def is_explainer_article(title: str, url: str) -> bool:
+    lower_title = title.casefold().strip()
+    lower_url = url.casefold()
+
+    if any(fragment in lower_url for fragment in _ANALYSIS_URL_FRAGMENTS):
+        return True
+    if any(pattern in lower_title for pattern in _EXPLAINER_TITLE_PATTERNS):
+        return True
+    if lower_title.startswith(_EXPLAINER_TITLE_PREFIXES):
+        return True
+    return "?" in title and not matched_terms(title, _HIGH_IMPACT_TERMS)
+
+
 def is_relevant_article(title: str, summary: str, url: str, keywords: list[str]) -> bool:
     if is_blocked_format(title, url):
         return False
@@ -544,3 +681,68 @@ def event_tokens(title: str, url: str = "") -> set[str]:
             canonical = canonical[:5]
         normalized.add(canonical)
     return normalized
+
+
+def article_selection_score(item: NewsItem) -> int:
+    text = f"{item.title}\n{item.url}"
+    high_hits = matched_terms(text, _HIGH_IMPACT_TERMS)
+    medium_hits = matched_terms(text, _MEDIUM_IMPACT_TERMS)
+    rhetoric_hits = matched_terms(text, _RHETORIC_TERMS)
+    human_hits = matched_terms(text, _HUMAN_INTEREST_TERMS)
+    topic_hits = match_topic_clusters(text)
+
+    score = source_rank(item.source, item.url)
+    score += 10 * min(len(topic_hits), 2)
+    score += 14 * min(len(high_hits), 3)
+    score += 6 * min(len(medium_hits), 2)
+
+    if has_term(text, "strait of hormuz") or has_term(text, "taiwan strait"):
+        score += 10
+
+    if is_explainer_article(item.title, item.url):
+        score -= 45
+    if rhetoric_hits and not high_hits:
+        score -= 18
+    if len(rhetoric_hits) >= 2:
+        score -= 8
+    if human_hits and len(high_hits) < 2:
+        score -= 14
+
+    return score
+
+
+def is_low_priority_candidate(item: NewsItem) -> bool:
+    text = f"{item.title}\n{item.url}"
+    high_hits = matched_terms(text, _HIGH_IMPACT_TERMS)
+    medium_hits = matched_terms(text, _MEDIUM_IMPACT_TERMS)
+    rhetoric_hits = matched_terms(text, _RHETORIC_TERMS)
+    human_hits = matched_terms(text, _HUMAN_INTEREST_TERMS)
+
+    if is_explainer_article(item.title, item.url):
+        return True
+    if rhetoric_hits and not (high_hits or medium_hits):
+        return True
+    if human_hits and len(high_hits) < 2 and not medium_hits:
+        return True
+    return False
+
+
+def article_selection_key(item: NewsItem) -> tuple[int, datetime, int]:
+    return (
+        article_selection_score(item),
+        parse_published_at(item.published),
+        source_rank(item.source, item.url),
+    )
+
+
+def prioritize_candidates(items: list[NewsItem], news_count: int) -> list[NewsItem]:
+    if not items:
+        return items
+
+    ranked = sorted(items, key=article_selection_key, reverse=True)
+    non_low_priority = [item for item in ranked if not is_low_priority_candidate(item)]
+    if len(non_low_priority) >= news_count + 2:
+        ranked = non_low_priority
+
+    candidate_window = max(news_count * 2, 8)
+    return ranked[:candidate_window]

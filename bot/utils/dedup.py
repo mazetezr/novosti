@@ -133,6 +133,7 @@ def cluster_similar_articles(
                 continue
             other = articles[j]
             similarity = max(
+                title_similarity(art.title, other.title),
                 title_jaccard(art.title, other.title),
                 event_similarity(art.title, other.title, art.url, other.url),
             )

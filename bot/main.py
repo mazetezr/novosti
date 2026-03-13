@@ -16,7 +16,7 @@ from bot.summarizer.llm import summarize
 from bot.poster.telegram import post_to_channel
 from bot.admin.router import router as admin_router
 from bot.utils.dedup import filter_by_previous_titles, cluster_similar_articles
-from bot.utils.news_priority import sort_articles
+from bot.utils.news_priority import prioritize_candidates, sort_articles
 from bot.state import set_scheduler
 
 from datetime import datetime, timezone
@@ -120,6 +120,16 @@ async def run_cycle():
 
         # Read news_count setting
         news_count = int(await get_setting("news_count", "5"))
+
+        # 3. Отдать в LLM только сильнейший пул, чтобы модель не тратила выбор
+        #    на explainers, рутину и погранично-релевантные статьи.
+        prioritized_news = prioritize_candidates(new_news_sorted, news_count=news_count)
+        if len(prioritized_news) < len(new_news_sorted):
+            logger.info(
+                "Priority pruning: %d → %d articles (-%d low-priority candidates)",
+                len(new_news_sorted), len(prioritized_news), len(new_news_sorted) - len(prioritized_news),
+            )
+        new_news_sorted = prioritized_news
 
         # Summarize with LLM
         summary, cited_indices = await summarize(new_news_sorted, prev_data, news_count=news_count)
