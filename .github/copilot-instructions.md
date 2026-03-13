@@ -106,18 +106,19 @@ novosti/
 
 - **Topic-кластеры** вместо голого substring-match.
 - **Co-occurrence логика**: одной общей темы недостаточно, нужны якорные и контекстные сигналы.
-- **URL/format stoplist**: режутся `opinion`, `commentary`, `feature`, `live`, `sports`, `podcast`, часть локального Hong Kong/business-контента у SCMP.
-- **Low-priority gating**: режутся или резко штрафуются `gallery`, explainers, TV/discover-материалы, solidarity/march stories, generic economy-impact pieces, political mood/process stories.
+- **URL/format stoplist**: режутся `opinion`, `commentary`, `feature`, `live`, `sports`, `podcast`, часть локального Hong Kong/business/tech-контента у SCMP (`/news/hong-kong/`, `/business/`, `/tech/`, `/tech-trends/`, `/magazines/`).
+- **Low-priority gating**: режутся или резко штрафуются `gallery`, explainers (в т.ч. colon-format «Тема: Длинный анализ» и numbered analysis «3 possible X»), TV/discover-материалы, solidarity/march stories, acquires/endorses, generic economy-impact pieces, political mood/process stories.
+- **No-substance rule**: статьи без high/medium-impact терминов И без topic cluster match → автоматически low-priority (score -35). Ловит consumer tech, US domestic politics, business acquisitions, opinion pieces, которые проходят keyword-фильтр через RSS summary.
 - **Source rank**: Reuters / AP / BBC / White House / официальные источники выше региональных и вторичных.
 - **TheNewsAPI quality filter**: слабые источники и мусорные внешние сайты не проходят.
 - **Сортировка до дедупа**: лучший представитель события выбирается не по порядку фидов, а по времени и качеству источника.
-- **Priority pruning до LLM**: отбор кандидатов теперь учитывает `source_rank + topic hits + high-impact terms - routine penalties`, чтобы не перегружать модель слабым фоном.
+- **Priority pruning до LLM**: отбор кандидатов теперь учитывает `source_rank + topic hits + high-impact/medium-impact terms - routine penalties`, чтобы не перегружать модель слабым фоном. Medium-impact включает uranium, nuclear, marines, offensive, deployed, summit и другие operational-термины.
 
 ### Почему это важно
 
 Раньше проходили ложные совпадения вроде Papa John's / robot arrested / локальный Hong Kong business-контент из-за широкого substring-match по словам вроде `Qatar`, `China`, `oil`, `Trump`.
 
-Теперь статья должна подтверждаться либо тематическим кластером, либо более сильным keyword-signal с контекстом. Даже после этого слабые типы материалов дополнительно режутся scoring/gating-слоем до LLM.
+Теперь статья должна подтверждаться либо тематическим кластером, либо более сильным keyword-signal с контекстом. Даже после этого слабые типы материалов дополнительно режутся scoring/gating-слоем до LLM. Статьи без operational substance (нет impact-терминов, нет topic-кластера) получают score-штраф -35 и флаг low-priority.
 
 ## Python-дедупликация (bot/utils/dedup.py)
 
@@ -266,4 +267,9 @@ LLM получает жёсткие инструкции:
 - scoring теперь учитывает high-impact / medium-impact сигналы и штрафует explainers, galleries, solidarity stories, generic economy-impact и political mood/process материалы;
 - `cluster_similar_articles()` теперь лучше схлопывает near-duplicates и выбирает представителя кластера по общему quality/importance, а не только по свежести;
 - prompt ужесточён против side-stories, маршей, рыночной реакции и общей риторики без нового operational consequence;
+- заблокированы SCMP URL-пути `/tech/`, `/tech-trends/`, `/magazines/` (Apple Mac Mini и подобное больше не проходит);
+- расширен детект explainer-статей: colon-format «Тема: Длинный аналитический подзаголовок», numbered analysis (`3 possible`, `5 key`, и т.д.);
+- добавлено правило **no-substance**: статьи без high/medium-impact терминов и без topic cluster match → автоматически low-priority (score -35);
+- medium-impact расширен: `uranium`, `enrichment`, `nuclear`, `marines`, `invasion`, `convoy`, `uprising`, `summit`, `offensive`, `deployed`;
+- low-priority patterns расширены: `acquires`, `endorses`, `selling out`, `candidate who`, `continue to back`, `public opinion`, `five-year plan`, `pay attention`, `deserve` и др.;
 - цель изменений: чтобы в LLM доходили не все формально релевантные статьи, а более узкий пул действительно сильных событий.
