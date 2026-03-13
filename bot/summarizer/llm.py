@@ -181,7 +181,9 @@ def _inject_links(text: str, source_map: dict[int, tuple[str, str]]) -> str:
             if n.isdigit() and int(n) in source_map:
                 name, url = source_map[int(n)]
                 parts.append(f'<a href="{url}">{name}</a>')
-            else:
-                parts.append(n)
-        return ", ".join(parts)
-    return re.sub(r'\[([\d,\s]+)\]', replacer, text)
+            elif n.isdigit():
+                logger.warning("LLM cited [%s] but only %d articles in pool", n, len(source_map))
+        if not parts:
+            return ""
+        return " " + ", ".join(parts)
+    return re.sub(r'\s*\[([\d,\s]+)\]', replacer, text)

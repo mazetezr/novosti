@@ -1,6 +1,7 @@
 import asyncio
 import logging
 import os
+import re
 import sys
 
 from aiogram import Bot, Dispatcher
@@ -44,6 +45,26 @@ def deduplicate(items: list[NewsItem]) -> list[NewsItem]:
             seen.add(item.url)
             result.append(item)
     return result
+
+
+def _is_stale_paragraph(para: str, previous_summaries: list[dict]) -> bool:
+    """Check if a summary paragraph duplicates content from previous posts."""
+    clean = re.sub(r"<[^>]+>", "", para).strip()
+    if len(clean) < 20:
+        return False
+    words = set(re.findall(r"[а-яёА-ЯЁa-zA-Z]{4,}", clean.lower()))
+    if len(words) < 4:
+        return False
+    for s in previous_summaries:
+        prev_clean = re.sub(r"<[^>]+>", "", s.get("text", ""))
+        for prev_para in prev_clean.split("\n"):
+            prev_words = set(re.findall(r"[а-яёА-ЯЁa-zA-Z]{4,}", prev_para.lower()))
+            if len(prev_words) < 4:
+                continue
+            overlap = len(words & prev_words) / min(len(words), len(prev_words))
+            if overlap >= 0.65:
+                return True
+    return False
 
 
 # async def _send_rejected_report(rejected: list, total: int):
@@ -136,6 +157,20 @@ async def run_cycle():
         if not summary:
             logger.error("LLM returned empty summary, skipping post")
             return
+
+        # Post-LLM dedup: remove paragraphs that repeat content from previous posts
+        if prev_data:
+            paragraphs = summary.split("\n\n")
+            cleaned = []
+            for para in paragraphs:
+                if _is_stale_paragraph(para, prev_data):
+                    logger.info("Post-LLM dedup removed: %s", re.sub(r"<[^>]+>", "", para)[:80])
+                else:
+                    cleaned.append(para)
+            summary = "\n\n".join(cleaned)
+            if not summary.strip():
+                logger.info("All paragraphs were duplicates of previous posts, skipping")
+                return
 
         # Post to Telegram
         await post_to_channel(summary)
