@@ -89,6 +89,7 @@ _GENERIC_URL_FRAGMENTS = (
     "/travel/",
     "/podcast/",
     "/video/",
+    "/gallery/",
 )
 
 _SCMP_URL_FRAGMENTS = (
@@ -245,6 +246,17 @@ _HUMAN_INTEREST_TERMS = (
     "campus",
     "museum",
     "profile",
+)
+
+_LOW_PRIORITY_PATTERNS = (
+    "solidarity",
+    "march worldwide",
+    "marches worldwide",
+    "political test",
+    "investors flee",
+    "fragile economy",
+    "at risk",
+    "farmers unions",
 )
 
 _GENERIC_TOPIC_KEYWORDS = {
@@ -690,6 +702,7 @@ def article_selection_score(item: NewsItem) -> int:
     rhetoric_hits = matched_terms(text, _RHETORIC_TERMS)
     human_hits = matched_terms(text, _HUMAN_INTEREST_TERMS)
     topic_hits = match_topic_clusters(text)
+    low_priority_hits = matched_terms(text, _LOW_PRIORITY_PATTERNS)
 
     score = source_rank(item.source, item.url)
     score += 10 * min(len(topic_hits), 2)
@@ -707,6 +720,12 @@ def article_selection_score(item: NewsItem) -> int:
         score -= 8
     if human_hits and len(high_hits) < 2:
         score -= 14
+    if low_priority_hits and len(high_hits) < 2:
+        score -= 24
+    if has_term(text, "economy") and not high_hits:
+        score -= 16
+    if has_term(text, "political") and not (high_hits or medium_hits):
+        score -= 16
 
     return score
 
@@ -717,12 +736,19 @@ def is_low_priority_candidate(item: NewsItem) -> bool:
     medium_hits = matched_terms(text, _MEDIUM_IMPACT_TERMS)
     rhetoric_hits = matched_terms(text, _RHETORIC_TERMS)
     human_hits = matched_terms(text, _HUMAN_INTEREST_TERMS)
+    low_priority_hits = matched_terms(text, _LOW_PRIORITY_PATTERNS)
 
     if is_explainer_article(item.title, item.url):
         return True
     if rhetoric_hits and not (high_hits or medium_hits):
         return True
     if human_hits and len(high_hits) < 2 and not medium_hits:
+        return True
+    if low_priority_hits and len(high_hits) < 2:
+        return True
+    if has_term(text, "economy") and not high_hits:
+        return True
+    if has_term(text, "political") and not (high_hits or medium_hits):
         return True
     return False
 
@@ -744,5 +770,5 @@ def prioritize_candidates(items: list[NewsItem], news_count: int) -> list[NewsIt
     if len(non_low_priority) >= news_count + 2:
         ranked = non_low_priority
 
-    candidate_window = max(news_count * 2, 8)
+    candidate_window = max(news_count + 3, 8)
     return ranked[:candidate_window]

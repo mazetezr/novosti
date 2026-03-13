@@ -6,7 +6,7 @@ import logging
 import re
 
 from bot.fetcher.models import NewsItem
-from bot.utils.news_priority import article_sort_key, event_tokens
+from bot.utils.news_priority import article_selection_key, article_sort_key, event_tokens
 
 logger = logging.getLogger(__name__)
 
@@ -137,7 +137,11 @@ def cluster_similar_articles(
                 title_jaccard(art.title, other.title),
                 event_similarity(art.title, other.title, art.url, other.url),
             )
-            if similarity >= threshold:
+            near_duplicate = (
+                title_similarity(art.title, other.title) >= 0.35
+                and event_similarity(art.title, other.title, art.url, other.url) >= 0.30
+            )
+            if similarity >= threshold or near_duplicate:
                 used.add(j)
                 cluster_members.append(other)
         cluster_size = len(cluster_members)
@@ -145,7 +149,7 @@ def cluster_similar_articles(
             logger.debug(
                 "Cluster of %d: %s", cluster_size, art.title[:80]
             )
-        kept.append(max(cluster_members, key=article_sort_key))
+        kept.append(max(cluster_members, key=article_selection_key))
 
     if len(kept) < len(articles):
         logger.info(
