@@ -95,6 +95,9 @@ _GENERIC_URL_FRAGMENTS = (
 _SCMP_URL_FRAGMENTS = (
     "/news/hong-kong/",
     "/business/",
+    "/tech/",
+    "/tech-trends/",
+    "/magazines/",
 )
 
 _BLOCKED_TITLE_PATTERNS = (
@@ -108,6 +111,8 @@ _ANALYSIS_URL_FRAGMENTS = (
     "/analysis/",
     "/tv-shows/",
     "/discover/",
+    "/in-depth/",
+    "/perspectives/",
 )
 
 _EXPLAINER_TITLE_PATTERNS = (
@@ -223,6 +228,16 @@ _MEDIUM_IMPACT_TERMS = (
     "deployment",
     "deploys",
     "troops",
+    "uranium",
+    "enrichment",
+    "nuclear",
+    "marines",
+    "invasion",
+    "convoy",
+    "uprising",
+    "summit",
+    "offensive",
+    "deployed",
 )
 
 _RHETORIC_TERMS = (
@@ -257,6 +272,21 @@ _LOW_PRIORITY_PATTERNS = (
     "fragile economy",
     "at risk",
     "farmers unions",
+    "acquires",
+    "acquisition",
+    "selling out",
+    "endorses",
+    "candidate who",
+    "continue to back",
+    "public opinion",
+    "poll shows",
+    "five-year plan",
+    "pay attention",
+    "instincts took over",
+    "training kicked in",
+    "independent news",
+    "news channel",
+    "deserve",
 )
 
 _GENERIC_TOPIC_KEYWORDS = {
@@ -654,6 +684,12 @@ def has_stopword_signal(text: str, stopwords: list[str]) -> bool:
     return bool(matched_terms(text, stopwords))
 
 
+_NUMBERED_ANALYSIS_RE = re.compile(
+    r"\b\d+\s+(possible|key|things?|reasons?|ways?|takeaways?|lessons?|questions?|deliverables?)\b",
+    re.IGNORECASE,
+)
+
+
 def is_explainer_article(title: str, url: str) -> bool:
     lower_title = title.casefold().strip()
     lower_url = url.casefold()
@@ -664,6 +700,13 @@ def is_explainer_article(title: str, url: str) -> bool:
         return True
     if lower_title.startswith(_EXPLAINER_TITLE_PREFIXES):
         return True
+    if _NUMBERED_ANALYSIS_RE.search(title):
+        return True
+    # Colon-format analysis: "Topic: Long Analytical Subtitle"
+    if ": " in title:
+        after_colon = title.split(": ", 1)[1]
+        if len(after_colon) > 20 and not matched_terms(after_colon, _HIGH_IMPACT_TERMS):
+            return True
     return "?" in title and not matched_terms(title, _HIGH_IMPACT_TERMS)
 
 
@@ -727,6 +770,10 @@ def article_selection_score(item: NewsItem) -> int:
     if has_term(text, "political") and not (high_hits or medium_hits):
         score -= 16
 
+    # No operational substance: no impact terms, no topic match
+    if not high_hits and not medium_hits and not topic_hits:
+        score -= 35
+
     return score
 
 
@@ -749,6 +796,9 @@ def is_low_priority_candidate(item: NewsItem) -> bool:
     if has_term(text, "economy") and not high_hits:
         return True
     if has_term(text, "political") and not (high_hits or medium_hits):
+        return True
+    # No operational substance: no impact terms, no topic cluster
+    if not high_hits and not medium_hits and not match_topic_clusters(text):
         return True
     return False
 
