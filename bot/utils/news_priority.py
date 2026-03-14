@@ -465,6 +465,33 @@ TOPIC_CLUSTERS = (
     ),
 )
 
+_TRUMP_IRAN_WAR_TERMS = (
+    "iran",
+    "iranian",
+    "tehran",
+    "kharg",
+    "hormuz",
+    "persian gulf",
+    "irgc",
+    "hezbollah",
+    "houthi",
+    "middle east",
+    "iraq",
+    "baghdad",
+    "bombing",
+    "bombed",
+    "obliterated",
+    "retaliation",
+)
+
+
+def _is_trump_iran_war(text: str) -> bool:
+    """Трамп + контекст войны с Ираном → не штрафовать как риторику."""
+    if not has_term(text, "trump"):
+        return False
+    return bool(matched_terms(text, _TRUMP_IRAN_WAR_TERMS))
+
+
 _EVENT_SYNONYMS = {
     "vessel": "shipping",
     "vessels": "shipping",
@@ -757,9 +784,10 @@ def article_selection_score(item: NewsItem) -> int:
 
     if is_explainer_article(item.title, item.url):
         score -= 45
-    if rhetoric_hits and not high_hits:
+    trump_iran = _is_trump_iran_war(text)
+    if rhetoric_hits and not high_hits and not trump_iran:
         score -= 18
-    if len(rhetoric_hits) >= 2:
+    if len(rhetoric_hits) >= 2 and not trump_iran:
         score -= 8
     if human_hits and len(high_hits) < 2:
         score -= 14
@@ -788,7 +816,8 @@ def is_low_priority_candidate(item: NewsItem) -> bool:
     if is_explainer_article(item.title, item.url):
         return True
     if rhetoric_hits and not (high_hits or medium_hits):
-        return True
+        if not _is_trump_iran_war(text):
+            return True
     if human_hits and len(high_hits) < 2 and not medium_hits:
         return True
     if low_priority_hits and len(high_hits) < 2:

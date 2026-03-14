@@ -273,3 +273,10 @@ LLM получает жёсткие инструкции:
 - medium-impact расширен: `uranium`, `enrichment`, `nuclear`, `marines`, `invasion`, `convoy`, `uprising`, `summit`, `offensive`, `deployed`;
 - low-priority patterns расширены: `acquires`, `endorses`, `selling out`, `candidate who`, `continue to back`, `public opinion`, `five-year plan`, `pay attention`, `deserve` и др.;
 - цель изменений: чтобы в LLM доходили не все формально релевантные статьи, а более узкий пул действительно сильных событий.
+
+### 2026-03-14
+
+- добавлено исключение для **Трамп + война с Ираном**: rhetoric-штраф (`-18`/`-8`) и low-priority gating не применяются к статьям, где Трамп высказывается по Ирану/войне;
+- функция `_is_trump_iran_war()` проверяет наличие `trump` + иранские/военные якоря (`iran`, `tehran`, `kharg`, `hormuz`, `persian gulf`, `irgc`, `hezbollah`, `houthi`, `middle east`, `iraq`, `baghdad`, `bombing`, `obliterated`, `retaliation`);
+- LLM prompt обновлён: Трамп по войне с Ираном вынесен в отдельный пункт приоритета (п.5) с инструкцией «ВСЕГДА БЕРИ»;
+- статьи Трампа без иранского контекста (внутренняя политика, тарифы без геополитики) по-прежнему штрафуются как риторика.
