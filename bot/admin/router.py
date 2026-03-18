@@ -10,7 +10,7 @@ from bot.config import ADMIN_IDS
 from bot.cursor.manager import (
     get_topics, add_topic, remove_topic,
     get_stopwords, add_stopword, remove_stopword,
-    get_setting, set_setting, reset_cursor,
+    get_setting, set_setting, reset_cursor, reset_cursor_minutes,
     DEFAULT_TOPICS, EXTRA_TOPICS,
 )
 
@@ -95,39 +95,47 @@ async def cb_reset_cursor(callback: CallbackQuery):
         return
     kb = InlineKeyboardMarkup(inline_keyboard=[
         [
-            InlineKeyboardButton(text="3ч", callback_data="reset_h:3"),
-            InlineKeyboardButton(text="6ч", callback_data="reset_h:6"),
-            InlineKeyboardButton(text="12ч", callback_data="reset_h:12"),
-            InlineKeyboardButton(text="24ч", callback_data="reset_h:24"),
+            InlineKeyboardButton(text="20мин", callback_data="reset_m:20"),
+            InlineKeyboardButton(text="30мин", callback_data="reset_m:30"),
+            InlineKeyboardButton(text="1ч", callback_data="reset_m:60"),
         ],
-        [InlineKeyboardButton(text="✏️ Ввести вручную", callback_data="reset_h_custom")],
+        [
+            InlineKeyboardButton(text="3ч", callback_data="reset_m:180"),
+            InlineKeyboardButton(text="6ч", callback_data="reset_m:360"),
+            InlineKeyboardButton(text="12ч", callback_data="reset_m:720"),
+        ],
+        [
+            InlineKeyboardButton(text="24ч", callback_data="reset_m:1440"),
+        ],
+        [InlineKeyboardButton(text="✏️ Ввести вручную (мин)", callback_data="reset_m_custom")],
         [InlineKeyboardButton(text="❌ Отмена", callback_data="admin_back")],
     ])
     await callback.message.edit_text(
         "🔄 <b>Сбросить курсор</b>\n\n"
-        "За сколько часов назад забрать новости?",
+        "За сколько назад забрать новости?",
         reply_markup=kb,
         parse_mode="HTML",
     )
     await callback.answer()
 
 
-@router.callback_query(F.data.startswith("reset_h:"))
-async def cb_reset_hours(callback: CallbackQuery):
+@router.callback_query(F.data.startswith("reset_m:"))
+async def cb_reset_minutes(callback: CallbackQuery):
     if not _is_admin(callback.from_user.id):
         return
-    hours = int(callback.data.split(":")[1])
-    await reset_cursor(hours)
-    await callback.answer(f"Курсор сброшен на {hours}ч назад", show_alert=True)
+    minutes = int(callback.data.split(":")[1])
+    await reset_cursor_minutes(minutes)
+    label = _format_interval(minutes)
+    await callback.answer(f"Курсор сброшен на {label} назад", show_alert=True)
     await callback.message.edit_text(
-        f"✅ Курсор сброшен — следующий цикл заберёт новости за <b>{hours}ч</b>.\n"
+        f"✅ Курсор сброшен — следующий цикл заберёт новости за <b>{label}</b>.\n"
         "Используйте /post для немедленной сводки.",
         reply_markup=_admin_kb(),
         parse_mode="HTML",
     )
 
 
-@router.callback_query(F.data == "reset_h_custom")
+@router.callback_query(F.data == "reset_m_custom")
 async def cb_reset_custom(callback: CallbackQuery, state: FSMContext):
     if not _is_admin(callback.from_user.id):
         return
@@ -136,29 +144,30 @@ async def cb_reset_custom(callback: CallbackQuery, state: FSMContext):
         [InlineKeyboardButton(text="❌ Отмена", callback_data="admin_back")],
     ])
     await callback.message.edit_text(
-        "Введите количество часов (от 1 до 72):",
+        "Введите количество минут (от 10 до 4320):",
         reply_markup=kb,
     )
     await callback.answer()
 
 
 @router.message(AdminFSM.waiting_for_reset_hours)
-async def process_reset_hours(message: Message, state: FSMContext):
+async def process_reset_minutes(message: Message, state: FSMContext):
     if not _is_admin(message.from_user.id):
         return
     text = message.text.strip()
-    if not text.isdigit() or not (1 <= int(text) <= 72):
+    if not text.isdigit() or not (10 <= int(text) <= 4320):
         await message.answer(
-            "⚠️ Введите целое число от 1 до 72.",
+            "⚠️ Введите целое число от 10 до 4320.",
             reply_markup=_admin_kb(),
         )
         await state.clear()
         return
-    hours = int(text)
-    await reset_cursor(hours)
+    minutes = int(text)
+    await reset_cursor_minutes(minutes)
     await state.clear()
+    label = _format_interval(minutes)
     await message.answer(
-        f"✅ Курсор сброшен — следующий цикл заберёт новости за <b>{hours}ч</b>.\n"
+        f"✅ Курсор сброшен — следующий цикл заберёт новости за <b>{label}</b>.\n"
         "Используйте /post для немедленной сводки.",
         reply_markup=_admin_kb(),
         parse_mode="HTML",

@@ -388,3 +388,15 @@ async def reset_cursor(hours: int = 3):
         await db.execute("DELETE FROM seen_urls")
         await db.commit()
     logger.info("Cursor reset to %d hours ago, seen_urls cleared", hours)
+
+
+async def reset_cursor_minutes(minutes: int = 180):
+    new_cursor = (datetime.now(timezone.utc) - timedelta(minutes=minutes)).isoformat()
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute("DELETE FROM cursor")
+        await db.execute(
+            "INSERT INTO cursor (id, last_run_at) VALUES (1, ?)", (new_cursor,)
+        )
+        await db.execute("DELETE FROM seen_urls")
+        await db.commit()
+    logger.info("Cursor reset to %d minutes ago, seen_urls cleared", minutes)
