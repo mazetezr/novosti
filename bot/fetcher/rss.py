@@ -34,6 +34,17 @@ RSS_FEEDS = [
     ("South China Morning Post", "https://www.scmp.com/rss/91/feed"),
     ("The Diplomat", "https://thediplomat.com/feed/"),
     ("Taiwan News", "https://www.taiwannews.com.tw/feed/news"),
+    # Нефть / газ / энергетика
+    ("OilPrice", "https://oilprice.com/rss/main"),
+    ("Rigzone", "https://www.rigzone.com/news/rss/rigzone_latest.aspx"),
+    ("EIA Today in Energy", "https://www.eia.gov/rss/todayinenergy.xml"),
+    ("Hellenic Shipping News", "https://www.hellenicshippingnews.com/feed/"),
+    ("Upstream Online", "https://www.upstreamonline.com/rss"),
+    ("CNBC Energy", "https://search.cnbc.com/rs/search/combinedcms/view.xml?partnerId=wrss01&id=19836768"),
+    ("Platts", "https://www.spglobal.com/commodityinsights/en/rss-feed/oil"),
+    ("Argus Media", "https://www.argusmedia.com/en/rss-feeds/oil-products"),
+    ("World Oil", "https://www.worldoil.com/rss"),
+    ("Natural Gas World", "https://www.naturalgasworld.com/rss"),
 ]
 
 

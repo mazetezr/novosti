@@ -182,8 +182,14 @@ DEFAULT_TOPICS = [
     "sabotage", "espionage", "cyberattack", "assassination",
     # Trump / US policy
     "Trump", "White House", "tariff", "executive order",
-    # Нефть и энергетика (релевантно для Ирана и региона)
-    "oil", "OPEC", "crude", "energy",
+    # Нефть и энергетика
+    "oil", "OPEC", "OPEC+", "crude", "energy", "Brent", "WTI",
+    "natural gas", "LNG", "pipeline", "refinery", "petroleum",
+    "barrel", "oil price", "gas price", "Aramco", "ADNOC",
+    "shale", "fracking", "drilling", "offshore", "upstream",
+    "energy crisis", "energy security", "oil embargo",
+    "gasoline", "diesel", "fuel", "kerosene",
+    "IEA", "EIA", "oil tanker",
     # Китай / Тайвань
     "China", "Taiwan", "Xi Jinping", "PLA", "CCP", "Beijing",
     "Taiwan Strait", "South China Sea", "semiconductor", "chip war",
@@ -215,6 +221,31 @@ EXTRA_TOPICS = [
     "amphibious", "invasion drill", "blockade",
     "deterrence Taiwan", "Taiwan Relations Act",
     "F-16", "arms sales Taiwan",
+    # Расширенная энергетика
+    "oil output", "oil supply", "oil demand", "oil production",
+    "gas production", "gas supply", "gas demand",
+    "production cut", "output cut", "supply cut",
+    "oil inventory", "oil stockpile", "crude inventory",
+    "strategic reserve", "SPR",
+    "rig count", "Baker Hughes",
+    "petrochemical", "petrochemicals",
+    "Rosneft", "Gazprom", "Novatek", "Lukoil",
+    "Saudi Aramco", "Kuwait Petroleum", "Qatar Energy",
+    "TotalEnergies", "Shell", "BP", "ExxonMobil", "Chevron",
+    "ConocoPhillips", "Equinor", "Eni",
+    "oil sanctions", "energy sanctions",
+    "oil embargo", "gas embargo",
+    "LNG terminal", "LNG export", "LNG import",
+    "gas pipeline", "oil pipeline",
+    "Nord Stream", "TurkStream", "TAPI",
+    "Keystone", "Trans Mountain",
+    "oil futures", "gas futures", "Brent crude", "WTI crude",
+    "spot price", "oil market", "gas market",
+    "midstream", "downstream", "upstream",
+    "oil spill", "oil leak",
+    "tanker attack", "tanker seizure",
+    "Kharg Island", "Ras Tanura", "Abqaiq",
+    "Strait of Malacca", "Suez Canal", "Bab el-Mandeb",
 ]
 
 # Topics to remove on startup (no longer relevant after Iran-focus pivot)
@@ -278,14 +309,26 @@ async def seed_default_topics():
                 )
             await db.commit()
             logger.info("Seeded %d default stopwords", len(DEFAULT_STOPWORDS))
-        # Seed default interval
+        # Seed default interval (migrate from hours to minutes if needed)
         rows = await db.execute_fetchall(
-            "SELECT 1 FROM settings WHERE key = 'interval_hours'"
+            "SELECT 1 FROM settings WHERE key = 'interval_minutes'"
         )
         if not rows:
-            await db.execute(
-                "INSERT INTO settings (key, value) VALUES ('interval_hours', '3')"
+            # Migrate from old interval_hours if present
+            old_rows = await db.execute_fetchall(
+                "SELECT value FROM settings WHERE key = 'interval_hours'"
             )
+            if old_rows:
+                old_hours = int(old_rows[0][0])
+                await db.execute(
+                    "INSERT INTO settings (key, value) VALUES ('interval_minutes', ?)",
+                    (str(old_hours * 60),),
+                )
+                await db.execute("DELETE FROM settings WHERE key = 'interval_hours'")
+            else:
+                await db.execute(
+                    "INSERT INTO settings (key, value) VALUES ('interval_minutes', '180')"
+                )
             await db.commit()
 
 

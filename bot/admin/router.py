@@ -71,15 +71,15 @@ async def cmd_post(message: Message):
     from bot.main import run_cycle
     await run_cycle()
 
-    # Сбросить таймер: следующий авто-пост через interval_hours от сейчас
+    # Сбросить таймер: следующий авто-пост через interval_minutes от сейчас
     from bot.state import get_scheduler
     from apscheduler.triggers.interval import IntervalTrigger
     sched = get_scheduler()
     if sched:
         try:
-            interval = int(await get_setting("interval_hours", "3"))
-            sched.reschedule_job("news_cycle", trigger=IntervalTrigger(hours=interval))
-            await message.answer(f"✅ Цикл завершён. Следующая авто-сводка через <b>{interval}ч</b>.", parse_mode="HTML")
+            interval_min = int(await get_setting("interval_minutes", "180"))
+            sched.reschedule_job("news_cycle", trigger=IntervalTrigger(minutes=interval_min))
+            await message.answer(f"✅ Цикл завершён. Следующая авто-сводка через <b>{_format_interval(interval_min)}</b>.", parse_mode="HTML")
         except Exception as e:
             logger.error("Failed to reschedule after /post: %s", e)
             await message.answer("✅ Цикл завершён.")
@@ -165,29 +165,44 @@ async def process_reset_hours(message: Message, state: FSMContext):
     )
 
 
+def _format_interval(minutes: int) -> str:
+    """Человекочитаемый формат интервала."""
+    if minutes < 60:
+        return f"{minutes}мин"
+    hours = minutes // 60
+    mins = minutes % 60
+    if mins:
+        return f"{hours}ч {mins}мин"
+    return f"{hours}ч"
+
+
 # --- Interval control ---
 
 @router.callback_query(F.data == "interval_menu")
 async def cb_interval_menu(callback: CallbackQuery):
     if not _is_admin(callback.from_user.id):
         return
-    current = await get_setting("interval_hours", "3")
+    current = int(await get_setting("interval_minutes", "180"))
     kb = InlineKeyboardMarkup(inline_keyboard=[
         [
-            InlineKeyboardButton(text="1ч", callback_data="set_iv:1"),
-            InlineKeyboardButton(text="2ч", callback_data="set_iv:2"),
-            InlineKeyboardButton(text="3ч", callback_data="set_iv:3"),
+            InlineKeyboardButton(text="20мин", callback_data="set_iv:20"),
+            InlineKeyboardButton(text="30мин", callback_data="set_iv:30"),
+            InlineKeyboardButton(text="1ч", callback_data="set_iv:60"),
         ],
         [
-            InlineKeyboardButton(text="4ч", callback_data="set_iv:4"),
-            InlineKeyboardButton(text="6ч", callback_data="set_iv:6"),
-            InlineKeyboardButton(text="12ч", callback_data="set_iv:12"),
+            InlineKeyboardButton(text="2ч", callback_data="set_iv:120"),
+            InlineKeyboardButton(text="3ч", callback_data="set_iv:180"),
+            InlineKeyboardButton(text="4ч", callback_data="set_iv:240"),
         ],
-        [InlineKeyboardButton(text="✏️ Ввести вручную", callback_data="set_iv_custom")],
+        [
+            InlineKeyboardButton(text="6ч", callback_data="set_iv:360"),
+            InlineKeyboardButton(text="12ч", callback_data="set_iv:720"),
+        ],
+        [InlineKeyboardButton(text="✏️ Ввести вручную (мин)", callback_data="set_iv_custom")],
         [InlineKeyboardButton(text="◀️ Назад", callback_data="admin_back")],
     ])
     await callback.message.edit_text(
-        f"🕐 <b>Частота постов</b>\nСейчас: каждые <b>{current}ч</b>\n\nВыберите или введите:",
+        f"🕐 <b>Частота постов</b>\nСейчас: каждые <b>{_format_interval(current)}</b>\n\nВыберите или введите:",
         reply_markup=kb,
         parse_mode="HTML",
     )
@@ -198,12 +213,12 @@ async def cb_interval_menu(callback: CallbackQuery):
 async def cb_set_interval(callback: CallbackQuery):
     if not _is_admin(callback.from_user.id):
         return
-    hours = int(callback.data.split(":")[1])
-    await _apply_interval(hours)
-    await callback.answer(f"Установлено: каждые {hours}ч", show_alert=True)
-    # Return to admin menu
+    minutes = int(callback.data.split(":")[1])
+    await _apply_interval(minutes)
+    label = _format_interval(minutes)
+    await callback.answer(f"Установлено: каждые {label}", show_alert=True)
     await callback.message.edit_text(
-        f"✅ Частота обновлена: каждые <b>{hours}ч</b>",
+        f"✅ Частота обновлена: каждые <b>{label}</b>",
         reply_markup=_admin_kb(),
         parse_mode="HTML",
     )
@@ -218,7 +233,7 @@ async def cb_set_interval_custom(callback: CallbackQuery, state: FSMContext):
         [InlineKeyboardButton(text="❌ Отмена", callback_data="admin_back")],
     ])
     await callback.message.edit_text(
-        "Введите частоту в часах (целое число от 1 до 24):",
+        "Введите частоту в минутах (от 10 до 1440):",
         reply_markup=kb,
     )
     await callback.answer()
@@ -229,33 +244,34 @@ async def process_interval(message: Message, state: FSMContext):
     if not _is_admin(message.from_user.id):
         return
     text = message.text.strip()
-    if not text.isdigit() or not (1 <= int(text) <= 24):
+    if not text.isdigit() or not (10 <= int(text) <= 1440):
         await message.answer(
-            "⚠️ Введите целое число от 1 до 24.",
+            "⚠️ Введите целое число от 10 до 1440.",
             reply_markup=_admin_kb(),
         )
         await state.clear()
         return
-    hours = int(text)
-    await _apply_interval(hours)
+    minutes = int(text)
+    await _apply_interval(minutes)
     await state.clear()
+    label = _format_interval(minutes)
     await message.answer(
-        f"✅ Частота обновлена: каждые <b>{hours}ч</b>",
+        f"✅ Частота обновлена: каждые <b>{label}</b>",
         reply_markup=_admin_kb(),
         parse_mode="HTML",
     )
 
 
-async def _apply_interval(hours: int):
+async def _apply_interval(minutes: int):
     """Save interval to DB and reschedule the job."""
-    await set_setting("interval_hours", str(hours))
+    await set_setting("interval_minutes", str(minutes))
     from bot.state import get_scheduler
     from apscheduler.triggers.interval import IntervalTrigger
     sched = get_scheduler()
     if sched:
         try:
-            sched.reschedule_job("news_cycle", trigger=IntervalTrigger(hours=hours))
-            logger.info("Rescheduled news_cycle to every %d hours", hours)
+            sched.reschedule_job("news_cycle", trigger=IntervalTrigger(minutes=minutes))
+            logger.info("Rescheduled news_cycle to every %d minutes", minutes)
         except Exception as e:
             logger.error("Failed to reschedule news_cycle: %s", e)
     else:

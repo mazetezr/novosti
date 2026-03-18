@@ -212,14 +212,14 @@ async def main():
     await init_db()
     await seed_default_topics()
 
-    saved = await get_setting("interval_hours", "3")
-    interval = int(saved)
-    logger.info("Starting scheduler (every %d hours)...", interval)
+    saved = await get_setting("interval_minutes", "180")
+    interval_min = int(saved)
+    logger.info("Starting scheduler (every %d minutes)...", interval_min)
     scheduler = AsyncIOScheduler()
     set_scheduler(scheduler)
     scheduler.add_job(
         run_cycle,
-        trigger=IntervalTrigger(hours=interval),
+        trigger=IntervalTrigger(minutes=interval_min),
         id="news_cycle",
         replace_existing=True,
     )
