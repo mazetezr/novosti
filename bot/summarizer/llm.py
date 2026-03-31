@@ -8,7 +8,7 @@ from bot.fetcher.models import NewsItem
 logger = logging.getLogger(__name__)
 
 OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions"
-MODEL = "openai/gpt-4o-mini"
+MODEL = "openai/gpt-5-nano"
 
 
 def _strip_html(text: str) -> str:
