@@ -44,7 +44,7 @@ novosti/
 │   ├── poster/
 │   │   └── telegram.py            # Публикация в канал
 │   ├── summarizer/
-│   │   └── llm.py                 # OpenRouter GPT-4o-mini, русский prompt
+│   │   └── llm.py                 # OpenRouter GPT-5 Nano, русский prompt
 │   └── utils/
 │       ├── dedup.py               # Python-level дедупликация событий
 │       └── news_priority.py       # Topic-кластеры, source rank, URL stoplist, sorting helpers
@@ -280,3 +280,7 @@ LLM получает жёсткие инструкции:
 - функция `_is_trump_iran_war()` проверяет наличие `trump` + иранские/военные якоря (`iran`, `tehran`, `kharg`, `hormuz`, `persian gulf`, `irgc`, `hezbollah`, `houthi`, `middle east`, `iraq`, `baghdad`, `bombing`, `obliterated`, `retaliation`);
 - LLM prompt обновлён: Трамп по войне с Ираном вынесен в отдельный пункт приоритета (п.5) с инструкцией «ВСЕГДА БЕРИ»;
 - статьи Трампа без иранского контекста (внутренняя политика, тарифы без геополитики) по-прежнему штрафуются как риторика.
+
+### 2026-03-31
+
+- модель суммаризации заменена с `openai/gpt-4o-mini` на `openai/gpt-5-nano` (дешевле, контекст до 400K токенов, достаточно для задач канала).
