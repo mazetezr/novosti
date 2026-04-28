@@ -225,6 +225,10 @@ async def main():
     )
     scheduler.start()
 
+    if (await get_setting("bot_active", "1")) == "0":
+        scheduler.pause_job("news_cycle")
+        logger.info("Bot loaded in STOPPED state — news_cycle paused")
+
     logger.info("Starting bot polling (admin commands)...")
     bot = Bot(token=TELEGRAM_BOT_TOKEN)
     dp = Dispatcher()

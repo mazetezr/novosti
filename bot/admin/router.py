@@ -30,7 +30,10 @@ def _is_admin(user_id: int) -> bool:
     return user_id in ADMIN_IDS
 
 
-def _admin_kb() -> InlineKeyboardMarkup:
+async def _admin_kb() -> InlineKeyboardMarkup:
+    is_active = (await get_setting("bot_active", "1")) == "1"
+    toggle_text = "⏸ СТОП" if is_active else "▶️ СТАРТ"
+    toggle_data = "bot_stop" if is_active else "bot_start"
     return InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text="📋 Список тем", callback_data="topics_list")],
         [InlineKeyboardButton(text="➕ Добавить тему", callback_data="topics_add")],
@@ -39,6 +42,7 @@ def _admin_kb() -> InlineKeyboardMarkup:
         [InlineKeyboardButton(text="🕐 Частота постов", callback_data="interval_menu")],
         [InlineKeyboardButton(text="📰 Кол-во новостей", callback_data="newscount_menu")],
         [InlineKeyboardButton(text="🔄 Сбросить курсор", callback_data="reset_cursor")],
+        [InlineKeyboardButton(text=toggle_text, callback_data=toggle_data)],
     ])
 
 
@@ -51,7 +55,7 @@ async def cmd_admin(message: Message, state: FSMContext):
     await state.clear()
     await message.answer(
         "⚙️ <b>Админ-панель</b>\nУправление темами и настройками",
-        reply_markup=_admin_kb(),
+        reply_markup=await _admin_kb(),
         parse_mode="HTML",
     )
 
@@ -130,7 +134,7 @@ async def cb_reset_minutes(callback: CallbackQuery):
     await callback.message.edit_text(
         f"✅ Курсор сброшен — следующий цикл заберёт новости за <b>{label}</b>.\n"
         "Используйте /post для немедленной сводки.",
-        reply_markup=_admin_kb(),
+        reply_markup=await _admin_kb(),
         parse_mode="HTML",
     )
 
@@ -158,7 +162,7 @@ async def process_reset_minutes(message: Message, state: FSMContext):
     if not text.isdigit() or not (10 <= int(text) <= 4320):
         await message.answer(
             "⚠️ Введите целое число от 10 до 4320.",
-            reply_markup=_admin_kb(),
+            reply_markup=await _admin_kb(),
         )
         await state.clear()
         return
@@ -169,7 +173,7 @@ async def process_reset_minutes(message: Message, state: FSMContext):
     await message.answer(
         f"✅ Курсор сброшен — следующий цикл заберёт новости за <b>{label}</b>.\n"
         "Используйте /post для немедленной сводки.",
-        reply_markup=_admin_kb(),
+        reply_markup=await _admin_kb(),
         parse_mode="HTML",
     )
 
@@ -228,7 +232,7 @@ async def cb_set_interval(callback: CallbackQuery):
     await callback.answer(f"Установлено: каждые {label}", show_alert=True)
     await callback.message.edit_text(
         f"✅ Частота обновлена: каждые <b>{label}</b>",
-        reply_markup=_admin_kb(),
+        reply_markup=await _admin_kb(),
         parse_mode="HTML",
     )
 
@@ -256,7 +260,7 @@ async def process_interval(message: Message, state: FSMContext):
     if not text.isdigit() or not (10 <= int(text) <= 1440):
         await message.answer(
             "⚠️ Введите целое число от 10 до 1440.",
-            reply_markup=_admin_kb(),
+            reply_markup=await _admin_kb(),
         )
         await state.clear()
         return
@@ -266,7 +270,7 @@ async def process_interval(message: Message, state: FSMContext):
     label = _format_interval(minutes)
     await message.answer(
         f"✅ Частота обновлена: каждые <b>{label}</b>",
-        reply_markup=_admin_kb(),
+        reply_markup=await _admin_kb(),
         parse_mode="HTML",
     )
 
@@ -325,7 +329,7 @@ async def cb_set_newscount(callback: CallbackQuery):
     await callback.answer(f"Установлено: {count} новостей", show_alert=True)
     await callback.message.edit_text(
         f"✅ Кол-во новостей обновлено: <b>{count}</b>",
-        reply_markup=_admin_kb(),
+        reply_markup=await _admin_kb(),
         parse_mode="HTML",
     )
 
@@ -353,7 +357,7 @@ async def process_news_count(message: Message, state: FSMContext):
     if not text.isdigit() or not (1 <= int(text) <= 20):
         await message.answer(
             "⚠️ Введите целое число от 1 до 20.",
-            reply_markup=_admin_kb(),
+            reply_markup=await _admin_kb(),
         )
         await state.clear()
         return
@@ -362,7 +366,7 @@ async def process_news_count(message: Message, state: FSMContext):
     await state.clear()
     await message.answer(
         f"✅ Кол-во новостей обновлено: <b>{count}</b>",
-        reply_markup=_admin_kb(),
+        reply_markup=await _admin_kb(),
         parse_mode="HTML",
     )
 
@@ -418,7 +422,7 @@ async def process_add_keyword(message: Message, state: FSMContext):
         text = "✅ Добавлено: " + ", ".join(f"<code>{k}</code>" for k in added)
     else:
         text = "⚠️ Ничего не добавлено (возможно, уже существуют)."
-    await message.answer(text, reply_markup=_admin_kb(), parse_mode="HTML")
+    await message.answer(text, reply_markup=await _admin_kb(), parse_mode="HTML")
 
 
 # --- Delete topic ---
@@ -534,7 +538,7 @@ async def process_add_stopword(message: Message, state: FSMContext):
         text = "✅ Добавлено: " + ", ".join(f"<code>{w}</code>" for w in added)
     else:
         text = "⚠️ Ничего не добавлено (возможно, уже существуют)."
-    await message.answer(text, reply_markup=_admin_kb(), parse_mode="HTML")
+    await message.answer(text, reply_markup=await _admin_kb(), parse_mode="HTML")
 
 
 async def _stop_del_kb() -> InlineKeyboardMarkup:
@@ -694,7 +698,53 @@ async def cb_admin_back(callback: CallbackQuery, state: FSMContext):
     await state.clear()
     await callback.message.edit_text(
         "⚙️ <b>Админ-панель</b>\nУправление темами и настройками",
-        reply_markup=_admin_kb(),
+        reply_markup=await _admin_kb(),
         parse_mode="HTML",
     )
     await callback.answer()
+
+
+# --- Bot active toggle (СТОП/СТАРТ) ---
+
+@router.callback_query(F.data == "bot_stop")
+async def cb_bot_stop(callback: CallbackQuery, state: FSMContext):
+    if not _is_admin(callback.from_user.id):
+        return
+    await state.clear()
+    await set_setting("bot_active", "0")
+    from bot.state import get_scheduler
+    sched = get_scheduler()
+    if sched:
+        try:
+            sched.pause_job("news_cycle")
+            logger.info("news_cycle paused via admin button")
+        except Exception as e:
+            logger.error("Failed to pause news_cycle: %s", e)
+    await callback.answer("Бот остановлен", show_alert=True)
+    await callback.message.edit_text(
+        "⚙️ <b>Админ-панель</b>\nУправление темами и настройками",
+        reply_markup=await _admin_kb(),
+        parse_mode="HTML",
+    )
+
+
+@router.callback_query(F.data == "bot_start")
+async def cb_bot_start(callback: CallbackQuery, state: FSMContext):
+    if not _is_admin(callback.from_user.id):
+        return
+    await state.clear()
+    await set_setting("bot_active", "1")
+    from bot.state import get_scheduler
+    sched = get_scheduler()
+    if sched:
+        try:
+            sched.resume_job("news_cycle")
+            logger.info("news_cycle resumed via admin button")
+        except Exception as e:
+            logger.error("Failed to resume news_cycle: %s", e)
+    await callback.answer("Бот запущен", show_alert=True)
+    await callback.message.edit_text(
+        "⚙️ <b>Админ-панель</b>\nУправление темами и настройками",
+        reply_markup=await _admin_kb(),
+        parse_mode="HTML",
+    )
